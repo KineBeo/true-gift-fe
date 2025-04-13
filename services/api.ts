@@ -3,8 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // API URL từ backend NestJS
-const API_URL = 'http://localhost:3000';
-const API_PREFIX = '/api/v1'; // Thêm tiền tố API nếu cần
+// const API_URL = 'http://localhost:3000';
+const API_URL = 'https://example.ngrok-free.app';
+const API_PREFIX = '/api/v1';
 
 // Tạo instance axios với cấu hình mặc định
 const apiClient = axios.create({
