@@ -54,9 +54,9 @@
 ## 🔧 Cấu hình kết nối API
 
 #### 1. Mở file `api.ts`
-#### 2. Cập nhật url backend:
+#### 2. Cập nhật url backend trong .env file:
    ```ts
-   export const API_URL = 'https://example.ngrok-free.app'; 
+   API_URL = 'https://example.ngrok-free.app'; 
    ```
 
 ---
