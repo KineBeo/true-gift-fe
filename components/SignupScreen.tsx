@@ -139,13 +139,21 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
         <View className="mb-10 mt-auto w-full">
           <TouchableOpacity
             className="mb-4 w-full items-center rounded-full bg-yellow-400 px-4 py-4"
-            onPress={() => setCurrentScreen('email-register')}>
+            onPress={() => setCurrentScreen('email-register')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
+            accessibilityLabel="Tạo tài khoản mới"
+            accessibilityRole="button">
             <Text className="text-xl font-bold text-black">Tạo tài khoản</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             className="items-center py-3"
-            onPress={() => setCurrentScreen('email-login')}>
+            onPress={() => setCurrentScreen('email-login')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            activeOpacity={0.7}
+            accessibilityLabel="Đăng nhập vào tài khoản"
+            accessibilityRole="button">
             <Text className="text-xl text-white">Đăng nhập</Text>
           </TouchableOpacity>
         </View>
@@ -206,14 +214,18 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
 
   const renderEmailLoginScreen = () => {
     return (
-      <ScrollView className="flex-1">
+      <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
         <View className="flex-1 items-center px-5 pb-10">
           {/* Header với nút quay lại */}
           <View className="mt-4 w-full">
             <TouchableOpacity
               className="h-14 w-14 items-center justify-center rounded-full bg-zinc-800"
               onPress={() => setCurrentScreen('welcome')}
-              disabled={loading}>
+              disabled={loading}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+              accessibilityLabel="Quay lại màn hình chào mừng"
+              accessibilityRole="button">
               <Text className="text-xl text-white">&lt;</Text>
             </TouchableOpacity>
           </View>
@@ -237,6 +249,10 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 editable={!loading}
+                placeholder="Nhập email của bạn"
+                placeholderTextColor="#666"
+                accessibilityLabel="Email"
+                accessibilityRole="text"
               />
             </View>
 
@@ -248,20 +264,32 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
                 className="rounded-full bg-zinc-800 px-5 py-4 text-lg text-white"
                 secureTextEntry
                 editable={!loading}
+                placeholder="Nhập mật khẩu"
+                placeholderTextColor="#666"
+                accessibilityLabel="Mật khẩu"
+                accessibilityRole="text"
               />
             </View>
 
             <TouchableOpacity
               className="mb-6 self-center"
               onPress={() => setCurrentScreen('email-register')}
-              disabled={loading}>
+              disabled={loading}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+              accessibilityLabel="Chuyển sang màn hình đăng ký"
+              accessibilityRole="button">
               <Text className="text-yellow-400">Chưa có tài khoản? Đăng ký</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               className={`w-full items-center rounded-full bg-yellow-400 px-4 py-4 ${loading ? 'opacity-70' : ''}`}
               onPress={handleLoginSubmit}
-              disabled={loading}>
+              disabled={loading}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+              accessibilityLabel="Đăng nhập"
+              accessibilityRole="button">
               {loading ? (
                 <ActivityIndicator color="#000" />
               ) : (
@@ -276,14 +304,18 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
 
   const renderEmailRegisterScreen = () => {
     return (
-      <ScrollView className="flex-1">
+      <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
         <View className="flex-1 items-center px-5 pb-10">
           {/* Header với nút quay lại */}
           <View className="mt-4 w-full">
             <TouchableOpacity
               className="h-14 w-14 items-center justify-center rounded-full bg-zinc-800"
               onPress={() => setCurrentScreen('welcome')}
-              disabled={loading}>
+              disabled={loading}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+              accessibilityLabel="Quay lại màn hình chào mừng"
+              accessibilityRole="button">
               <Text className="text-xl text-white">&lt;</Text>
             </TouchableOpacity>
           </View>
@@ -305,6 +337,10 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
                 onChangeText={setLastName}
                 className="rounded-full bg-zinc-800 px-5 py-4 text-lg text-white"
                 editable={!loading}
+                placeholder="Nhập họ của bạn"
+                placeholderTextColor="#666"
+                accessibilityLabel="Họ"
+                accessibilityRole="text"
               />
             </View>
 
@@ -315,6 +351,10 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
                 onChangeText={setFirstName}
                 className="rounded-full bg-zinc-800 px-5 py-4 text-lg text-white"
                 editable={!loading}
+                placeholder="Nhập tên của bạn"
+                placeholderTextColor="#666"
+                accessibilityLabel="Tên"
+                accessibilityRole="text"
               />
             </View>
 
@@ -327,6 +367,10 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 editable={!loading}
+                placeholder="Nhập email của bạn"
+                placeholderTextColor="#666"
+                accessibilityLabel="Email"
+                accessibilityRole="text"
               />
             </View>
 
@@ -338,6 +382,10 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
                 className="rounded-full bg-zinc-800 px-5 py-4 text-lg text-white"
                 secureTextEntry
                 editable={!loading}
+                placeholder="Nhập mật khẩu"
+                placeholderTextColor="#666"
+                accessibilityLabel="Mật khẩu"
+                accessibilityRole="text"
               />
             </View>
 
@@ -349,20 +397,32 @@ export const SignupScreen = ({ onLogin }: SignupScreenProps) => {
                 className="rounded-full bg-zinc-800 px-5 py-4 text-lg text-white"
                 secureTextEntry
                 editable={!loading}
+                placeholder="Nhập lại mật khẩu"
+                placeholderTextColor="#666"
+                accessibilityLabel="Xác nhận mật khẩu"
+                accessibilityRole="text"
               />
             </View>
 
             <TouchableOpacity
               className="mb-6 self-center"
               onPress={() => setCurrentScreen('email-login')}
-              disabled={loading}>
+              disabled={loading}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+              accessibilityLabel="Chuyển sang màn hình đăng nhập"
+              accessibilityRole="button">
               <Text className="text-yellow-400">Đã có tài khoản? Đăng nhập</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               className={`w-full items-center rounded-full bg-yellow-400 px-4 py-4 ${loading ? 'opacity-70' : ''}`}
               onPress={handleRegisterSubmit}
-              disabled={loading}>
+              disabled={loading}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+              accessibilityLabel="Đăng ký tài khoản"
+              accessibilityRole="button">
               {loading ? (
                 <ActivityIndicator color="#000" />
               ) : (
