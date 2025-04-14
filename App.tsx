@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ActivityIndicator, Alert } from 'react-native';
-import { SignupScreen } from './components/SignupScreen';
-import { HomeScreen } from './components/HomeScreen';
+
 import { ChatScreen } from './components/ChatScreen';
 import { ConversationsScreen } from './components/ConversationsScreen';
+import { HomeScreen } from './components/HomeScreen';
+import { SignupScreen } from './components/SignupScreen';
 import { checkAuthStatus, logout } from './services/api';
 
 import './global.css';
@@ -19,7 +20,7 @@ export default function App() {
   const [chatProps, setChatProps] = useState({
     friendId: 0,
     friendName: '',
-    friendEmail: ''
+    friendEmail: '',
   });
 
   useEffect(() => {
@@ -46,7 +47,7 @@ export default function App() {
     setIsLoggedIn(true);
     setCurrentScreen('home');
   };
-  
+
   const handleLogout = async () => {
     try {
       setLoading(true);
@@ -60,51 +61,51 @@ export default function App() {
       setLoading(false);
     }
   };
-  
+
   const handleOpenChat = (friendId: number, friendName: string, friendEmail: string) => {
     setChatProps({
       friendId,
       friendName,
-      friendEmail
+      friendEmail,
     });
     setCurrentScreen('chat');
   };
-  
+
   const handleOpenConversations = () => {
     setCurrentScreen('conversations');
   };
-  
+
   const handleBackToHome = () => {
     setCurrentScreen('home');
   };
 
   if (loading) {
     return (
-      <View className="flex-1 bg-black items-center justify-center">
+      <View className="flex-1 items-center justify-center bg-black">
         <ActivityIndicator size="large" color="#FFBB00" />
-        <Text className="text-white mt-4">Đang tải...</Text>
+        <Text className="mt-4 text-white">Đang tải...</Text>
       </View>
     );
   }
-  
+
   // Hiển thị màn hình phù hợp dựa trên trạng thái hiện tại
   const renderScreen = () => {
     if (!isLoggedIn) {
       return <SignupScreen onLogin={handleLogin} />;
     }
-    
+
     switch (currentScreen) {
       case 'home':
         return (
-          <HomeScreen 
-            onLogout={handleLogout} 
+          <HomeScreen
+            onLogout={handleLogout}
             onOpenChat={handleOpenChat}
             onOpenConversations={handleOpenConversations}
           />
         );
       case 'chat':
         return (
-          <ChatScreen 
+          <ChatScreen
             friendId={chatProps.friendId}
             friendName={chatProps.friendName}
             friendEmail={chatProps.friendEmail}
@@ -112,16 +113,11 @@ export default function App() {
           />
         );
       case 'conversations':
-        return (
-          <ConversationsScreen
-            onBack={handleBackToHome}
-            onOpenChat={handleOpenChat}
-          />
-        );
+        return <ConversationsScreen onBack={handleBackToHome} onOpenChat={handleOpenChat} />;
       default:
         return (
-          <HomeScreen 
-            onLogout={handleLogout} 
+          <HomeScreen
+            onLogout={handleLogout}
             onOpenChat={handleOpenChat}
             onOpenConversations={handleOpenConversations}
           />

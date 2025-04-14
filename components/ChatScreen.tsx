@@ -1,19 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  FlatList, 
-  KeyboardAvoidingView, 
-  Platform, 
+import { Ionicons } from '@expo/vector-icons';
+import { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
   ActivityIndicator,
   Alert,
-  Image,
   SafeAreaView,
-  StatusBar
+  StatusBar,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+
 import { getMessages, sendMessage, markMessagesAsRead, getProfile } from '../services/api';
 
 interface Message {
@@ -51,7 +51,7 @@ export const ChatScreen = ({ friendId, friendName, friendEmail, onBack }: ChatSc
     page: 1,
     limit: 20,
     total: 0,
-    hasMore: true
+    hasMore: true,
   });
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
@@ -73,19 +73,19 @@ export const ChatScreen = ({ friendId, friendName, friendEmail, onBack }: ChatSc
   // Tải tin nhắn
   useEffect(() => {
     loadMessages();
-    
+
     // Đánh dấu tin nhắn đã đọc
     markAllAsRead();
-    
+
     // Thiết lập interval để cập nhật tin nhắn mới (mỗi 15 giây thay vì 10 giây)
     // Sử dụng interval với thời gian lâu hơn để giảm số lần gọi API
     const intervalId = setInterval(() => {
       loadMessages(true);
     }, 15000);
-    
+
     return () => clearInterval(intervalId);
   }, [numericFriendId]);
-  
+
   // Đánh dấu tin nhắn đã đọc
   const markAllAsRead = async () => {
     try {
@@ -98,7 +98,7 @@ export const ChatScreen = ({ friendId, friendName, friendEmail, onBack }: ChatSc
       console.error('Lỗi khi đánh dấu tin nhắn đã đọc:', error);
     }
   };
-  
+
   // Tải tin nhắn
   const loadMessages = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -111,37 +111,37 @@ export const ChatScreen = ({ friendId, friendName, friendEmail, onBack }: ChatSc
         setLoading(false);
         return;
       }
-      
+
       // Thử lấy tin nhắn từ API
       try {
         const response = await getMessages({
           receiverId: numericFriendId,
           page: pagination.page,
-          limit: pagination.limit
+          limit: pagination.limit,
         });
-        
+
         // Chuẩn hóa dữ liệu để tránh lỗi null/undefined
         const messages = response?.data || [];
-        
+
         // Xác định tổng số tin nhắn từ response meta (API mới) hoặc total (API cũ)
         // Ép kiểu any để tránh lỗi TypeScript
         const responseAny = response as any;
         const total = responseAny?.meta?.total || responseAny?.total || 0;
-        
+
         // Cập nhật state messages
         if (pagination.page === 1) {
           setMessages(messages);
         } else {
-          setMessages(prevMessages => [...prevMessages, ...messages]);
+          setMessages((prevMessages) => [...prevMessages, ...messages]);
         }
-        
+
         // Cập nhật state pagination
         setPagination({
           ...pagination,
           total: total,
-          hasMore: total > (pagination.page * pagination.limit)
+          hasMore: total > pagination.page * pagination.limit,
         });
-        
+
         // Đánh dấu tin nhắn đã đọc
         if (messages.length > 0) {
           await markAllAsRead();
@@ -149,11 +149,14 @@ export const ChatScreen = ({ friendId, friendName, friendEmail, onBack }: ChatSc
       } catch (apiError: any) {
         // Chỉ hiển thị lỗi đầy đủ trong console để gỡ lỗi
         console.error('API error in loadMessages:', apiError);
-        
+
         // Kiểm tra mã lỗi
-        const errorStatus = apiError?.status || apiError?.statusCode || 
-                            apiError?.response?.status || apiError?.response?.data?.statusCode;
-        
+        const errorStatus =
+          apiError?.status ||
+          apiError?.statusCode ||
+          apiError?.response?.status ||
+          apiError?.response?.data?.statusCode;
+
         // Xử lý trường hợp lỗi 404 (không có tin nhắn)
         if (errorStatus === 404) {
           console.log('Không có tin nhắn với người dùng này - sử dụng mảng rỗng');
@@ -161,7 +164,7 @@ export const ChatScreen = ({ friendId, friendName, friendEmail, onBack }: ChatSc
           setPagination({
             ...pagination,
             total: 0,
-            hasMore: false
+            hasMore: false,
           });
         }
         // Xử lý lỗi 422 (validation error)
@@ -178,7 +181,7 @@ export const ChatScreen = ({ friendId, friendName, friendEmail, onBack }: ChatSc
             console.warn('ID người nhận không hợp lệ');
           }
           setMessages([]);
-        } 
+        }
         // Xử lý các lỗi khác nhưng vẫn hiển thị UI trống
         else {
           if (!silent) {
@@ -195,51 +198,51 @@ export const ChatScreen = ({ friendId, friendName, friendEmail, onBack }: ChatSc
       if (!silent) setLoading(false);
     }
   };
-  
+
   // Tải thêm tin nhắn cũ
   const loadMoreMessages = () => {
     if (pagination.hasMore && !loading) {
-      setPagination(prev => ({
+      setPagination((prev) => ({
         ...prev,
-        page: prev.page + 1
+        page: prev.page + 1,
       }));
       loadMessages();
     }
   };
-  
+
   // Gửi tin nhắn mới
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
-    
+
     try {
       setSending(true);
-      
+
       if (isNaN(numericFriendId)) {
         console.error('Invalid friendId for sendMessage:', numericFriendId);
         Alert.alert('Lỗi', 'Không thể gửi tin nhắn: ID người nhận không hợp lệ');
         setSending(false);
         return;
       }
-      
+
       await sendMessage(numericFriendId, newMessage);
-      
+
       setNewMessage('');
       // Tải lại tin nhắn để hiển thị tin nhắn mới
       await loadMessages(true);
-      
+
       // Cuộn lên tin nhắn mới nhất (vì FlatList đã đảo ngược)
       setTimeout(() => {
         flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
       }, 100);
     } catch (error: any) {
       console.error('Lỗi khi gửi tin nhắn:', error);
-      
+
       // Hiển thị thông báo lỗi cụ thể hơn cho người dùng hiểu
       if (error?.errors?.receiverId) {
         Alert.alert('Lỗi', 'Không thể gửi tin nhắn: ID người nhận không hợp lệ');
       } else if (error?.message?.includes('Không thể gửi tin nhắn cho người này')) {
         Alert.alert(
-          'Lỗi', 
+          'Lỗi',
           'Không thể gửi tin nhắn cho người này. Có thể họ không phải là bạn bè hoặc đã chặn bạn.'
         );
       } else {
@@ -249,77 +252,67 @@ export const ChatScreen = ({ friendId, friendName, friendEmail, onBack }: ChatSc
       setSending(false);
     }
   };
-  
+
   // Format thời gian
   const formatMessageTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
-    
+
     // Nếu hôm nay, chỉ hiện giờ
     if (date.toDateString() === now.toDateString()) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
-    
+
     // Nếu hôm qua
     if (date.toDateString() === yesterday.toDateString()) {
       return `Hôm qua ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
-    
+
     // Khác
     return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   };
-  
+
   // Render từng tin nhắn
   const renderMessage = ({ item }: { item: Message }) => {
     const isMyMessage = item.senderId === currentUserId;
-    
+
     return (
       <View className={`my-1 max-w-[80%] ${isMyMessage ? 'self-end' : 'self-start'}`}>
         <View className={`rounded-2xl p-3 ${isMyMessage ? 'bg-yellow-400' : 'bg-zinc-800'}`}>
-          <Text className={`${isMyMessage ? 'text-black' : 'text-white'}`}>
-            {item.content}
-          </Text>
+          <Text className={`${isMyMessage ? 'text-black' : 'text-white'}`}>{item.content}</Text>
         </View>
-        <Text className="text-gray-500 text-xs mt-1 ml-1">
+        <Text className="ml-1 mt-1 text-xs text-gray-500">
           {formatMessageTime(item.createdAt)}
-          {isMyMessage && (
-            <Text className="ml-1">
-              {item.isRead ? ' • Đã xem' : ' • Đã gửi'}
-            </Text>
-          )}
+          {isMyMessage && <Text className="ml-1">{item.isRead ? ' • Đã xem' : ' • Đã gửi'}</Text>}
         </Text>
       </View>
     );
   };
-  
+
   // Render ngày phân cách tin nhắn
   const renderDateSeparator = (date: Date) => (
-    <View className="flex-row items-center justify-center my-3">
-      <View className="flex-1 h-[1px] bg-gray-700" />
-      <Text className="text-gray-500 mx-3 text-xs">
-        {date.toLocaleDateString()}
-      </Text>
-      <View className="flex-1 h-[1px] bg-gray-700" />
+    <View className="my-3 flex-row items-center justify-center">
+      <View className="h-[1px] flex-1 bg-gray-700" />
+      <Text className="mx-3 text-xs text-gray-500">{date.toLocaleDateString()}</Text>
+      <View className="h-[1px] flex-1 bg-gray-700" />
     </View>
   );
-  
+
   // Header với thông tin người nhận
   const renderHeader = () => (
-    <View className="flex-row items-center justify-between p-4 border-b border-gray-800">
+    <View className="flex-row items-center justify-between border-b border-gray-800 p-4">
       <View className="flex-row items-center">
         <TouchableOpacity onPress={onBack} className="mr-3">
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <View className="w-10 h-10 bg-zinc-700 rounded-full items-center justify-center mr-3">
-          <Text className="text-white font-bold">
-            {friendName.charAt(0).toUpperCase()}
-          </Text>
+        <View className="mr-3 h-10 w-10 items-center justify-center rounded-full bg-zinc-700">
+          <Text className="font-bold text-white">{friendName.charAt(0).toUpperCase()}</Text>
         </View>
         <View>
-          <Text className="text-white font-medium">{friendName}</Text>
-          <Text className="text-gray-400 text-xs">{friendEmail}</Text>
+          <Text className="font-medium text-white">{friendName}</Text>
+          <Text className="text-xs text-gray-400">{friendEmail}</Text>
         </View>
       </View>
       <TouchableOpacity>
@@ -327,15 +320,15 @@ export const ChatScreen = ({ friendId, friendName, friendEmail, onBack }: ChatSc
       </TouchableOpacity>
     </View>
   );
-  
+
   // Phần nhập tin nhắn mới
   const renderMessageInput = () => (
-    <View className="p-2 border-t border-gray-800 flex-row items-center">
+    <View className="flex-row items-center border-t border-gray-800 p-2">
       <TouchableOpacity className="mr-2 p-2">
         <Ionicons name="add-circle-outline" size={24} color="white" />
       </TouchableOpacity>
       <TextInput
-        className="flex-1 bg-zinc-800 text-white rounded-full px-4 py-2"
+        className="flex-1 rounded-full bg-zinc-800 px-4 py-2 text-white"
         placeholder="Nhập tin nhắn..."
         placeholderTextColor="#666"
         value={newMessage}
@@ -345,34 +338,28 @@ export const ChatScreen = ({ friendId, friendName, friendEmail, onBack }: ChatSc
       {sending ? (
         <ActivityIndicator size="small" color="#FFBB00" className="ml-2 p-2" />
       ) : (
-        <TouchableOpacity 
-          className="ml-2 p-2" 
+        <TouchableOpacity
+          className="ml-2 p-2"
           onPress={handleSendMessage}
-          disabled={newMessage.trim() === ''}
-        >
-          <Ionicons 
-            name="send" 
-            size={24} 
-            color={newMessage.trim() ? "#FFBB00" : "#666"} 
-          />
+          disabled={newMessage.trim() === ''}>
+          <Ionicons name="send" size={24} color={newMessage.trim() ? '#FFBB00' : '#666'} />
         </TouchableOpacity>
       )}
     </View>
   );
-  
+
   return (
     <SafeAreaView className="flex-1 bg-black">
       <StatusBar barStyle="light-content" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1"
-      >
+        className="flex-1">
         {renderHeader()}
-        
+
         {loading && messages.length === 0 ? (
           <View className="flex-1 items-center justify-center">
             <ActivityIndicator size="large" color="#FFBB00" />
-            <Text className="text-white mt-4">Đang tải tin nhắn...</Text>
+            <Text className="mt-4 text-white">Đang tải tin nhắn...</Text>
           </View>
         ) : (
           <FlatList
@@ -380,17 +367,19 @@ export const ChatScreen = ({ friendId, friendName, friendEmail, onBack }: ChatSc
             data={[...messages].reverse()}
             renderItem={renderMessage}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, flexGrow: messages.length === 0 ? 1 : undefined }}
+            contentContainerStyle={{
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              flexGrow: messages.length === 0 ? 1 : undefined,
+            }}
             inverted={true}
             onEndReached={loadMoreMessages}
             onEndReachedThreshold={0.5}
             ListEmptyComponent={() => (
               <View className="flex-1 items-center justify-center py-10">
                 <Ionicons name="chatbubble-ellipses-outline" size={60} color="#444" />
-                <Text className="text-white text-lg mt-4 text-center">
-                  Chưa có tin nhắn nào
-                </Text>
-                <Text className="text-gray-400 text-sm mt-2 text-center px-10">
+                <Text className="mt-4 text-center text-lg text-white">Chưa có tin nhắn nào</Text>
+                <Text className="mt-2 px-10 text-center text-sm text-gray-400">
                   Hãy bắt đầu cuộc trò chuyện bằng cách gửi tin nhắn đầu tiên.
                 </Text>
               </View>
@@ -402,9 +391,9 @@ export const ChatScreen = ({ friendId, friendName, friendEmail, onBack }: ChatSc
             }
           />
         )}
-        
+
         {renderMessageInput()}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-}; 
+};
