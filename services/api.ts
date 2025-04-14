@@ -3,7 +3,8 @@ import axios from 'axios';
 
 // API URL từ backend NestJS
 // const API_URL = 'http://localhost:3000';
-const API_URL = 'https://03d9-2401-d800-178-daac-cdd8-9f2c-9156-4c38.ngrok-free.app';
+const API_URL = process.env.API_URL;
+console.log('API_URL:', API_URL);
 const API_PREFIX = '/api/v1';
 
 // Tạo instance axios với cấu hình mặc định
