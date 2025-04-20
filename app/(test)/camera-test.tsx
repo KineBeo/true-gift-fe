@@ -161,12 +161,12 @@ export default function CameraTest() {
             <Ionicons name="person" size={22} color="white" />
           </TouchableOpacity>
 
-          <Pressable className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center">
+          <TouchableOpacity className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center">
             <Ionicons name="people" size={22} color="white" />
             <Text className="text-white ml-2 font-extrabold text-xl">
               1 Friends
             </Text>
-          </Pressable>
+          </TouchableOpacity>
 
           <Pressable className="bg-zinc-800/80 p-4 rounded-full">
             <Ionicons name="chatbubble" size={22} color="white" />
