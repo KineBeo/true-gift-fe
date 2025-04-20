@@ -8,7 +8,7 @@ export const API_CONFIG = {
   // For local development with a real device, use your machine's IP
   // For emulator/simulator, Android: 10.0.2.2, iOS: localhost
   DEV_API_URL: 'https://example.ngrok-free.app/api/v1', // Replace with your IP
-  PROD_API_URL: 'https://example.truegift.com/api/v1',
+  PROD_API_URL: 'https://api.truegift.com/api/v1',
   // Default timeout in milliseconds
   TIMEOUT: 15000,
 };

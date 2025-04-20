@@ -118,7 +118,7 @@ export default function WelcomeScreen() {
             </TouchableOpacity>
 
             {/* Sign in text button */}
-            <TouchableOpacity onPress={() => router.push("/(test)/camera-test")}>
+            <TouchableOpacity onPress={() => router.push("/(auth)/sign-in")}>
               <Text className="text-white text-xl font-extrabold text-center pt-6">
                 Sign in
               </Text>

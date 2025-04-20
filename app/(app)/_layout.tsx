@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { Stack, Tabs } from 'expo-router';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../lib/stores/auth-store';
@@ -14,54 +14,13 @@ export default function AppLayout() {
   // which is protected by the auth check in the home screen.
   
   return (
-    <Tabs
+    <Stack
       screenOptions={{
-        tabBarActiveTintColor: '#F59E0B',
-        tabBarInactiveTintColor: '#9CA3AF',
-        tabBarStyle: {
-          borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
-          height: 60 + insets.bottom,
-          paddingTop: 10,
-          paddingBottom: insets.bottom,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-          marginBottom: 5,
-        },
         headerShown: false,
       }}
-    >
-      <Tabs.Screen
-        name="home/index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="home" size={size} color={color} />
-          ),
-        }}
-      />
-      
-      <Tabs.Screen
-        name="friends/index"
-        options={{
-          title: 'Friends',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="users" size={size} color={color} />
-          ),
-        }}
-      />
-      
-      <Tabs.Screen
-        name="profile/index"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="user" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+    >  
+      {/* <Stack.Screen name="/home" />
+      <Stack.Screen name="/profile" /> */}
+    </Stack>
   );
 }

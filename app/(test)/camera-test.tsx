@@ -5,7 +5,7 @@ import {
   CameraView,
   useCameraPermissions,
 } from "expo-camera";
-import { Pressable, StyleSheet, Text, View, Dimensions } from "react-native";
+import { Pressable, StyleSheet, Text, View, Dimensions, TouchableOpacity } from "react-native";
 import { Image } from "expo-image";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Feather from "@expo/vector-icons/Feather";
@@ -90,7 +90,7 @@ export default function CameraTest() {
         <View className="absolute top-16 w-full flex-row justify-between px-4 m-4">
           <Pressable
             className="bg-zinc-800/80 p-4 rounded-full"
-            onPress={() => router.push("/(app)/friends")}
+            // onPress={() => router.push("/(app)/profile/friends")}
           >
             <Ionicons name="person" size={22} color="white" />
           </Pressable>
@@ -154,12 +154,12 @@ export default function CameraTest() {
 
         {/* Friend count indicator */}
         <View className="absolute top-16 w-full flex-row justify-between px-4 m-4">
-          <Pressable
+          <TouchableOpacity
             className="bg-zinc-800/80 p-4 rounded-full"
-            onPress={() => router.push("/(app)/friends")}
+            onPress={() => router.push("/(app)/profile")}
           >
             <Ionicons name="person" size={22} color="white" />
-          </Pressable>
+          </TouchableOpacity>
 
           <Pressable className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center">
             <Ionicons name="people" size={22} color="white" />
