@@ -36,7 +36,7 @@ export default function RootLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: 'ios_from_left',
+        animation: 'none',
       }}
     >
       <Stack.Screen name="(public)/welcome" options={{ title: 'Welcome' }} />

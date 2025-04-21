@@ -48,7 +48,7 @@ export default function SignIn() {
     
     try {
       await login(values.email, values.password);
-      router.replace('/(test)/camera-test');
+      router.replace('/(app)/home');
     } catch (error) {
       // Error handling is done in the store
     }

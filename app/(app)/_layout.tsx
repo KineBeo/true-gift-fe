@@ -19,8 +19,6 @@ export default function AppLayout() {
         headerShown: false,
       }}
     >  
-      {/* <Stack.Screen name="/home" />
-      <Stack.Screen name="/profile" /> */}
     </Stack>
   );
 }

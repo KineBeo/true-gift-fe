@@ -168,9 +168,9 @@ export default function CameraTest() {
             </Text>
           </TouchableOpacity>
 
-          <Pressable className="bg-zinc-800/80 p-4 rounded-full">
+          <TouchableOpacity className="bg-zinc-800/80 p-4 rounded-full">
             <Ionicons name="chatbubble" size={22} color="white" />
-          </Pressable>
+          </TouchableOpacity>
         </View>
 
         {/* Bottom controls */}
