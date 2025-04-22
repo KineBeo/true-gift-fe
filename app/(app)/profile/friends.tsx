@@ -151,7 +151,7 @@ export default function FriendsScreen() {
 
       console.log("Current user ID:", useAuthStore.getState().user?.id);
       const formattedFriends = response.data.map(formatFriend);
-      console.log("Formatted friends:", formattedFriends);
+      console.log("Formatted friends 111:", formattedFriends);
 
       setFriends(formattedFriends);
       setTotalFriends(response.total);

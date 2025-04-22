@@ -410,6 +410,126 @@ const filesService = {
       console.error('Error fetching photo history:', error);
       return { data: [] };
     }
+  },
+
+  /**
+   * Get photos from a specific friend
+   * @param friendId The ID of the friend
+   * @param page Page number (starting from 1)
+   * @param limit Number of items per page
+   * @returns Promise with the friend's photos
+   */
+  getFriendPhotos: async (friendId: number, page = 1, limit = 10): Promise<any> => {
+    try {
+      const token = useAuthStore.getState().token;
+      if (!token) {
+        throw new Error('Authentication token is missing');
+      }
+
+      const baseUrl = API_URL || 'https://api.truegift.com';
+      
+      const response = await fetch(`${baseUrl}/photos/friends/${friendId}?page=${page}&limit=${limit}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch friend's photos: ${response.status}`);
+      }
+
+      const jsonResponse = await response.json();
+      
+      // Handle any kind of API response format
+      let formattedData = [];
+      
+      if (Array.isArray(jsonResponse)) {
+        formattedData = jsonResponse;
+      } else if (jsonResponse.data && Array.isArray(jsonResponse.data)) {
+        formattedData = jsonResponse.data;
+      } else if (jsonResponse.items && Array.isArray(jsonResponse.items)) {
+        formattedData = jsonResponse.items;
+      } else if (jsonResponse.results && Array.isArray(jsonResponse.results)) {
+        formattedData = jsonResponse.results;
+      }
+      
+      // Return in a consistent format
+      return {
+        data: formattedData.map((item: any) => ({
+          id: item.id || item._id || item.fileId || 'unknown',
+          path: item.url || item.path || '',
+          filename: item.filename || 'photo.jpg',
+          mimetype: item.mimetype || 'image/jpeg',
+          createdAt: item.createdAt || new Date().toISOString()
+        }))
+      };
+    } catch (error) {
+      console.error(`Error fetching friend's photos (ID: ${friendId}):`, error);
+      return { data: [] };
+    }
+  },
+  
+  /**
+   * Get photos from all friends of the current user
+   * @param page Page number (starting from 1)
+   * @param limit Number of items per page
+   * @returns Promise with all friends' photos
+   */
+  getAllFriendsPhotos: async (page = 1, limit = 20): Promise<any> => {
+    try {
+      const token = useAuthStore.getState().token;
+      if (!token) {
+        throw new Error('Authentication token is missing');
+      }
+
+      const baseUrl = API_URL || 'https://api.truegift.com';
+      
+      const response = await fetch(`${baseUrl}/photos/friends?page=${page}&limit=${limit}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch friends' photos: ${response.status}`);
+      }
+
+      const jsonResponse = await response.json();
+      
+      // Handle any kind of API response format
+      let formattedData = [];
+      
+      if (Array.isArray(jsonResponse)) {
+        formattedData = jsonResponse;
+      } else if (jsonResponse.data && Array.isArray(jsonResponse.data)) {
+        formattedData = jsonResponse.data;
+      } else if (jsonResponse.items && Array.isArray(jsonResponse.items)) {
+        formattedData = jsonResponse.items;
+      } else if (jsonResponse.results && Array.isArray(jsonResponse.results)) {
+        formattedData = jsonResponse.results;
+      }
+      
+      // Return in a consistent format
+      return {
+        data: formattedData.map((item: any) => ({
+          id: item.id || item._id || item.fileId || 'unknown',
+          path: item.url || item.path || '',
+          filename: item.filename || 'photo.jpg',
+          mimetype: item.mimetype || 'image/jpeg',
+          createdAt: item.createdAt || new Date().toISOString(),
+          userId: item.userId || item.user?.id || null, // Include the user ID to identify the friend
+          userName: item.userName || 
+            (item.user ? `${item.user.firstName || ''} ${item.user.lastName || ''}`.trim() : null)
+        }))
+      };
+    } catch (error) {
+      console.error('Error fetching friends\' photos:', error);
+      return { data: [] };
+    }
   }
 };
 

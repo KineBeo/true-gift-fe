@@ -104,8 +104,13 @@ const formatDate = (dateString: string) => {
   });
 };
 
+interface ExtendedFileDto extends FileDto {
+  userId?: number | null;
+  userName?: string | null;
+}
+
 export default function Home() {
-  const { user, logout, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const [refreshing, setRefreshing] = React.useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const ref = useRef<CameraView>(null);
@@ -125,13 +130,13 @@ export default function Home() {
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [feedModalVisible, setFeedModalVisible] = useState(false);
   const router = useRouter();
-  
+
   useEffect(() => {
     if (!isAuthenticated) {
       router.replace("/welcome");
     }
   }, [isAuthenticated]);
-  
+
   useEffect(() => {
     // Group photos whenever myPhotos changes
     if (myPhotos.length > 0) {
@@ -140,15 +145,14 @@ export default function Home() {
   }, [myPhotos]);
 
   useEffect(() => {
-    // Fetch photos when component mounts
-    fetchMyPhotos();
+    fetchAllPhotos();
   }, []);
-  
-  const openHistoryModal = () => {
-    fetchMyPhotos();
-    router.push("/home/history");
-  };
-  
+
+  // const openHistoryModal = () => {
+  //   fetchMyPhotos();
+  //   router.push("/home/history");
+  // };
+
   const viewPhotoDetail = (photo: FileDto) => {
     setSelectedPhoto(photo);
     router.push({
@@ -156,36 +160,65 @@ export default function Home() {
       params: { photo: JSON.stringify(photo) },
     });
   };
-
-  const fetchMyPhotos = async () => {
+  const fetchMyPhotos = async (): Promise<ExtendedFileDto[]> => {
     try {
-      setLoadingPhotos(true);
       const response = await filesService.getMyPhotos();
       if (response && response.data) {
-        setMyPhotos(response.data);
+        return response.data;
       }
+      return [];
     } catch (error) {
       console.error("Error fetching photos:", error);
       Alert.alert("Error", "Failed to load your photos");
+      return [];
+    }
+  };
+
+  const fetchFriendsPhotos = async (): Promise<ExtendedFileDto[]> => {
+    try {
+      const response = await filesService.getAllFriendsPhotos();
+      if (response && response.data) {
+        return response.data;
+      }
+      return [];
+    } catch (error) {
+      console.error("Error fetching friends photos:", error);
+      Alert.alert("Error", "Failed to load your friends' photos");
+      return [];
+    }
+  };
+
+  const fetchAllPhotos = async (): Promise<ExtendedFileDto[]> => {
+    try {
+      setLoadingPhotos(true);
+      const myPhotos = await fetchMyPhotos();
+      const friendsPhotos = await fetchFriendsPhotos();
+      const allPhotos = [...myPhotos, ...friendsPhotos];
+      allPhotos.sort((a: ExtendedFileDto, b: ExtendedFileDto) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA; // Descending order (newest first)
+      });
+      setMyPhotos(allPhotos);
+      return allPhotos;
+    } catch (error) {
+      console.error("Error fetching all photos:", error);
+      return [];
     } finally {
       setLoadingPhotos(false);
     }
   };
-  
+
   const onRefreshPhotos = useCallback(async () => {
     setRefreshing(true);
-    await fetchMyPhotos();
+    await fetchAllPhotos();
     setRefreshing(false);
   }, []);
 
   const showHistory = () => {
-    fetchMyPhotos();
+    // fetchMyPhotos();
+    fetchAllPhotos();
     setFeedModalVisible(true);
-  };
-
-  const handleLogout = async () => {
-    await logout();
-    router.replace("/welcome");
   };
 
   if (!user) {
@@ -256,35 +289,26 @@ export default function Home() {
       Alert.alert("Error", "No photo to send");
       return;
     }
-
     setSending(true);
-
     try {
-      // console.log(`Attempting to upload photo: ${uri}`);
-      
+    
       // Check if the URI is valid for upload - must be a local file:// or content:// URI
       if (!uri.startsWith("file://") && !uri.startsWith("content://")) {
         console.warn(
           `URI format might not be compatible: ${uri.substring(0, 20)}...`
         );
       }
-      
+
       // Try getting file info if possible
       try {
         const fileInfo = await FileSystem.getInfoAsync(uri);
-        // console.log('File info before upload:', {
-        //   exists: fileInfo.exists,
-        //   size: fileInfo.exists ? (fileInfo as any).size : 'N/A',
-        //   uri: fileInfo.uri.substring(0, 30) + '...' // Truncate for logging
-        // });
-        
         if (!fileInfo.exists) {
           throw new Error("File does not exist at the specified URI");
         }
       } catch (fileInfoError) {
         console.warn("Unable to verify file info:", fileInfoError);
       }
-      
+
       // Upload the photo - always use the default 'message' type
       // If no friend is selected, we'll just upload without specifying a recipient
       const response = await filesService.uploadPhoto(uri, {
@@ -295,8 +319,6 @@ export default function Home() {
       console.log("Upload response:", JSON.stringify(response));
 
       if (response.success) {
-        // console.log('Upload successful:', response.file);
-        // Show success message
         Alert.alert("Success", "Photo uploaded successfully!", [
           {
             text: "OK",
@@ -304,7 +326,7 @@ export default function Home() {
               // Reset the camera view
               setUri(null);
               setSending(false);
-              
+
               // Refresh the photo history to show the new photo
               fetchMyPhotos();
             },
@@ -320,7 +342,7 @@ export default function Home() {
         "Error details:",
         error instanceof Error ? error.message : "Unknown error"
       );
-      
+
       // More user-friendly error message
       Alert.alert(
         "Upload Failed",
@@ -348,7 +370,7 @@ export default function Home() {
 
   const downloadPhoto = () => {
     if (!uri) return;
-    
+
     // This would save the photo to the device's gallery
     // For now, just show an alert
     Alert.alert("Photo Saved", "Photo has been saved to your device");
@@ -378,7 +400,7 @@ export default function Home() {
             <Ionicons name="person" size={22} color="white" />
           </Pressable>
 
-          <Pressable 
+          <Pressable
             className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center"
             onPress={selectFriend}
           >
@@ -388,7 +410,7 @@ export default function Home() {
             </Text>
           </Pressable>
 
-          <Pressable 
+          <Pressable
             className="bg-zinc-800/80 p-4 rounded-full"
             onPress={downloadPhoto}
           >
@@ -424,7 +446,7 @@ export default function Home() {
 
         {/* Send to friends */}
         <View className="absolute bottom-32 w-full items-center">
-          <Pressable 
+          <Pressable
             className="flex-row items-center bg-zinc-800/80 py-2 px-6 rounded-full"
             onPress={selectFriend}
           >
@@ -460,7 +482,9 @@ export default function Home() {
             <Ionicons name="person" size={22} color="white" />
           </TouchableOpacity>
 
-          <TouchableOpacity className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center">
+          <TouchableOpacity 
+          onPress={() => router.push("/(app)/home/friends")}
+          className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center">
             <Ionicons name="people" size={22} color="white" />
             <Text className="text-white ml-2 font-extrabold text-xl">
               1 Friends
@@ -522,7 +546,7 @@ export default function Home() {
       </View>
     );
   };
-  
+
   const renderFeedItem = ({ item }: { item: FileDto }) => {
     const imageUrl = filesService.getFileUrl(item.path);
     const isIpfs = isIPFSImage(item.path);
@@ -531,13 +555,13 @@ export default function Home() {
       <View style={styles.feedItem}>
         <View className="flex-1 bg-black w-full items-center justify-center">
           <View style={styles.feedCameraContainer}>
-             <Image
-               source={{ uri: imageUrl }}
-               contentFit="cover"
-               transition={500}
-               style={styles.feedImage}
-               cachePolicy={isIpfs ? "memory" : "disk"}
-             />
+            <Image
+              source={{ uri: imageUrl }}
+              contentFit="cover"
+              transition={500}
+              style={styles.feedImage}
+              cachePolicy={isIpfs ? "memory" : "disk"}
+            />
           </View>
         </View>
 
@@ -548,11 +572,7 @@ export default function Home() {
             // onPress={toggleFlash}
             className="items-center justify-center w-12 h-12"
           >
-            <Ionicons
-              name={"grid"}
-              size={35}
-              color="white"
-            />
+            <Ionicons name={"grid"} size={35} color="white" />
           </TouchableOpacity>
 
           {/* Capture button */}
@@ -579,7 +599,7 @@ export default function Home() {
       </View>
     );
   };
-  
+
   const renderFeedModal = () => {
     return (
       <Modal
@@ -622,15 +642,15 @@ export default function Home() {
               }
             />
           )}
-          
+
           {/* Feed control buttons */}
           <View className="absolute top-16 w-full flex-row justify-between px-8 mt-4">
-            <Pressable
+            {/* <Pressable
               className="bg-zinc-800/80 p-4 rounded-full"
               onPress={() => router.push("/profile")}
             >
               <Ionicons name="person" size={22} color="white" />
-            </Pressable>
+            </Pressable> */}
 
             <Pressable
               className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center"
@@ -642,12 +662,12 @@ export default function Home() {
               </Text>
             </Pressable>
 
-            <Pressable
+            {/* <Pressable
               className="bg-zinc-800/80 p-4 rounded-full"
               onPress={() => router.push("/message")}
             >
               <Ionicons name="chatbubble" size={22} color="white" />
-            </Pressable>
+            </Pressable> */}
           </View>
         </View>
       </Modal>
@@ -797,5 +817,4 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontWeight: "600",
   },
-  // ... existing styles
 });
