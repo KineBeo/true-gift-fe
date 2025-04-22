@@ -88,10 +88,10 @@ export default function FriendsScreen() {
   // Helper function to format FriendDto into our Friend interface
   const formatFriend = (friendData: FriendDto): Friend => {
     const { user, friend, userId, friendId } = friendData;
-    
+
     // Get current user ID from auth store
     const currentUserId = useAuthStore.getState().user?.id;
-    
+
     // Determine which user object contains the friend's information
     // If userId matches current user, then friend contains the friend info
     // Otherwise, user contains the friend info
@@ -101,18 +101,19 @@ export default function FriendsScreen() {
       return {
         id: friendData.id,
         name: "Unknown User",
-        avatarInitials: "??"
+        avatarInitials: "??",
       };
     }
 
     const fullName = `${userInfo.firstName} ${userInfo.lastName}`;
-    const avatarInitials = userInfo.firstName.charAt(0) + userInfo.lastName.charAt(0);
+    const avatarInitials =
+      userInfo.firstName.charAt(0) + userInfo.lastName.charAt(0);
 
     return {
       id: friendData.id,
       name: fullName,
       avatarUrl: userInfo.photo,
-      avatarInitials: avatarInitials
+      avatarInitials: avatarInitials,
     };
   };
 
@@ -127,24 +128,23 @@ export default function FriendsScreen() {
         page,
         limit,
         isAccepted: true,
-        includeRelations: true
+        includeRelations: true,
       });
-      
+
       console.log("Current user ID:", useAuthStore.getState().user?.id);
       const formattedFriends = response.data.map(formatFriend);
       console.log("Formatted friends:", formattedFriends);
-      
+
       setFriends(formattedFriends);
       setTotalFriends(response.total);
-      
+
       // Fetch pending friend requests
       const requestsResponse = await friendsService.getFriendRequests({
         page: 1,
-        limit: 5
+        limit: 5,
       });
-      
-      setFriendRequests(requestsResponse.data.map(formatFriend));
 
+      setFriendRequests(requestsResponse.data.map(formatFriend));
     } catch (err) {
       console.error("Error fetching friends:", err);
       setError("Failed to load friends. Please try again.");
@@ -156,33 +156,17 @@ export default function FriendsScreen() {
   // Load more friends when "Show more" is clicked
   const handleLoadMore = () => {
     if (friends.length < totalFriends) {
-      setPage(prevPage => prevPage + 1);
+      setPage((prevPage) => prevPage + 1);
     }
   };
 
-  // Remove a friend
-  // const handleRemoveFriend = async (friendId: string | number) => {
-  //   try {
-  //     // Only proceed if the ID is a string (format from backend)
-  //     if (typeof friendId === 'string') {
-  //       await friendsService.removeFriend(friendId);
-  //       // Remove friend from state
-  //       setFriends(prevFriends => prevFriends.filter(friend => friend.id !== friendId));
-  //       setTotalFriends(prev => prev - 1);
-  //     }
-  //   } catch (err) {
-  //     console.error("Error removing friend:", err);
-  //     setError("Failed to remove friend. Please try again.");
-  //   }
-  // };
-
   // Run animation when component mounts and fetch data
   useEffect(() => {
-    translateY.value = withTiming(0, {
-      duration: 350,
-      easing: Easing.out(Easing.cubic),
-    });
-    
+    // translateY.value = withTiming(0, {
+    //   duration: 350,
+    //   easing: Easing.out(Easing.cubic),
+    // });
+
     fetchFriends();
   }, []);
 
@@ -199,21 +183,21 @@ export default function FriendsScreen() {
         page,
         limit,
         isAccepted: true,
-        includeRelations: true
+        includeRelations: true,
       });
 
       // Append new friends to existing list
-      setFriends(prev => [...prev, ...response.data.map(formatFriend)]);
+      setFriends((prev) => [...prev, ...response.data.map(formatFriend)]);
     } catch (err) {
       console.error("Error loading more friends:", err);
     }
   };
 
-  const animatedStyles = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: translateY.value }],
-    };
-  });
+  // const animatedStyles = useAnimatedStyle(() => {
+  //   return {
+  //     transform: [{ translateY: translateY.value }],
+  //   };
+  // });
 
   const handleClose = () => {
     translateY.value = withTiming(
@@ -263,199 +247,175 @@ export default function FriendsScreen() {
           {friend.name}
         </Text>
       </View>
-      {/* <TouchableOpacity 
-        className="p-2"
-        onPress={() => handleRemoveFriend(friend.id)}
-      >
-        <Feather name="x" size={24} color="white" />
-      </TouchableOpacity> */}
     </View>
   );
 
   return (
-    <View className="flex-1 bg-black/70 justify-end">
-      <StatusBar barStyle="light-content" />
+    <View className="bg-custom-dark h-full" style={styles.modalContainer}>
+      {/* Handle bar */}
+      <View className="w-full items-center pt-3 pb-4">
+        <View className="w-10 h-2 bg-zinc-600 rounded-full" />
+      </View>
 
-      {/* Close area - tap to dismiss */}
-      <TouchableOpacity
-        className="absolute top-0 left-0 right-0 bottom-0"
-        onPress={handleClose}
-        activeOpacity={1}
-      />
+      <SafeAreaView className="flex-1">
+        {loading && friends.length === 0 ? (
+          <View className="flex-1 justify-center items-center">
+            <ActivityIndicator size="large" color="#FFC107" />
+            <Text className="text-white mt-4 text-lg">Loading friends...</Text>
+          </View>
+        ) : error ? (
+          <View className="flex-1 justify-center items-center px-6">
+            <Feather name="alert-circle" size={48} color="#FFC107" />
+            <Text className="text-white mt-4 text-lg text-center">{error}</Text>
+            <TouchableOpacity
+              className="mt-6 bg-yellow-600 px-6 py-3 rounded-full"
+              onPress={fetchFriends}
+            >
+              <Text className="text-white font-bold">Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <ScrollView>
+            {/* Friends counter */}
+            <Text className="text-white text-4xl font-bold text-center mt-4">
+              {friends.length} out of {totalFriends} friends
+            </Text>
+            <Text className="text-gray-400 text-xl text-center mt-2 mb-6">
+              {friendRequests.length > 0
+                ? `You have ${friendRequests.length} pending requests`
+                : "Invite a friend to continue"}
+            </Text>
 
-      <Animated.View
-        style={[styles.modalContainer, animatedStyles]}
-        className="bg-gray-900 rounded-t-3xl h-5/6"
-      >
-        {/* Handle bar */}
-        <View className="w-full items-center pt-3 pb-2">
-          <View className="w-10 h-1 bg-zinc-600 rounded-full" />
-        </View>
-
-        <SafeAreaView className="flex-1">
-          {loading && friends.length === 0 ? (
-            <View className="flex-1 justify-center items-center">
-              <ActivityIndicator size="large" color="#FFC107" />
-              <Text className="text-white mt-4 text-lg">Loading friends...</Text>
-            </View>
-          ) : error ? (
-            <View className="flex-1 justify-center items-center px-6">
-              <Feather name="alert-circle" size={48} color="#FFC107" />
-              <Text className="text-white mt-4 text-lg text-center">{error}</Text>
-              <TouchableOpacity 
-                className="mt-6 bg-yellow-600 px-6 py-3 rounded-full"
-                onPress={fetchFriends}
-              >
-                <Text className="text-white font-bold">Try Again</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <ScrollView>
-              {/* Friends counter */}
-              <Text className="text-white text-4xl font-bold text-center mt-4">
-                {friends.length} out of {totalFriends} friends
+            {/* Search bar */}
+            <TouchableOpacity className="mx-6 mb-6 flex-row items-center bg-zinc-800 rounded-full px-4 py-3">
+              <Feather name="search" size={22} color="#9CA3AF" />
+              <Text className="text-gray-400 text-lg ml-2">
+                Add a new friend
               </Text>
-              <Text className="text-gray-400 text-xl text-center mt-2 mb-6">
-                {friendRequests.length > 0 
-                  ? `You have ${friendRequests.length} pending requests` 
-                  : "Invite a friend to continue"}
-              </Text>
+            </TouchableOpacity>
 
-              {/* Search bar */}
-              <TouchableOpacity className="mx-6 mb-6 flex-row items-center bg-zinc-800 rounded-full px-4 py-3">
-                <Feather name="search" size={22} color="#9CA3AF" />
-                <Text className="text-gray-400 text-lg ml-2">
-                  Add a new friend
+            {/* Find friends from other apps */}
+            <View className="mx-6 mb-2">
+              <View className="flex-row items-center mb-4">
+                <Feather name="search" size={22} color="white" />
+                <Text className="text-white text-xl font-bold ml-2">
+                  Find friends from other apps
                 </Text>
-              </TouchableOpacity>
+              </View>
 
-              {/* Find friends from other apps */}
-              <View className="mx-6 mb-2">
-                <View className="flex-row items-center mb-4">
-                  <Feather name="search" size={22} color="white" />
+              <View className="bg-zinc-900 rounded-3xl p-6 mb-6">
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  className="mb-2"
+                >
+                  {SOCIAL_APPS.map((app) => renderSocialApp(app))}
+                </ScrollView>
+              </View>
+            </View>
+
+            {/* Friend Requests section, show only if there are requests */}
+            {friendRequests.length > 0 && (
+              <View className="mx-6 mb-6">
+                <View className="flex-row items-center mb-3">
+                  <Ionicons name="person-add" size={24} color="white" />
                   <Text className="text-white text-xl font-bold ml-2">
-                    Find friends from other apps
+                    Friend Requests
                   </Text>
                 </View>
 
-                <View className="bg-zinc-900 rounded-3xl p-6 mb-6">
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    className="mb-2"
-                  >
-                    {SOCIAL_APPS.map((app) => renderSocialApp(app))}
-                  </ScrollView>
+                <View className="bg-zinc-900 rounded-3xl px-4 py-3 divide-y divide-zinc-800">
+                  {friendRequests.map((request) => renderFriend(request))}
                 </View>
               </View>
+            )}
 
-              {/* Friend Requests section, show only if there are requests */}
-              {friendRequests.length > 0 && (
-                <View className="mx-6 mb-6">
-                  <View className="flex-row items-center mb-3">
-                    <Ionicons name="person-add" size={24} color="white" />
-                    <Text className="text-white text-xl font-bold ml-2">
-                      Friend Requests
-                    </Text>
-                  </View>
+            {/* Your Friends section */}
+            <View className="mx-6">
+              <View className="flex-row items-center mb-3">
+                <Ionicons name="people" size={24} color="white" />
+                <Text className="text-white text-xl font-bold ml-2">
+                  Your Friends
+                </Text>
+              </View>
 
-                  <View className="bg-zinc-900 rounded-3xl px-4 py-3 divide-y divide-zinc-800">
-                    {friendRequests.map(request => renderFriend(request))}
-                  </View>
+              {/* Friends list */}
+              {friends.length > 0 ? (
+                <View className="bg-zinc-900 rounded-3xl px-4 py-3 divide-y divide-zinc-800">
+                  {friends.map((friend) => renderFriend(friend))}
+                </View>
+              ) : (
+                <View className="bg-zinc-900 rounded-3xl px-4 py-8 items-center">
+                  <Text className="text-gray-400 text-lg text-center">
+                    You don't have any friends yet
+                  </Text>
                 </View>
               )}
 
-              {/* Your Friends section */}
-              <View className="mx-6">
-                <View className="flex-row items-center mb-3">
-                  <Ionicons name="people" size={24} color="white" />
-                  <Text className="text-white text-xl font-bold ml-2">
-                    Your Friends
-                  </Text>
-                </View>
-
-                {/* Friends list */}
-                {friends.length > 0 ? (
-                  <View className="bg-zinc-900 rounded-3xl px-4 py-3 divide-y divide-zinc-800">
-                    {friends.map(friend => renderFriend(friend))}
-                  </View>
-                ) : (
-                  <View className="bg-zinc-900 rounded-3xl px-4 py-8 items-center">
-                    <Text className="text-gray-400 text-lg text-center">
-                      You don't have any friends yet
-                    </Text>
-                  </View>
-                )}
-
-                {/* Show more button - only if there are more friends to load */}
-                {friends.length > 0 && friends.length < totalFriends && (
-                  <View className="items-center mt-6 mb-4">
-                    <TouchableOpacity 
-                      className="bg-zinc-800 py-3 px-10 rounded-full flex-row items-center"
-                      onPress={handleLoadMore}
-                    >
-                      {loading && page > 1 ? (
-                        <ActivityIndicator size="small" color="white" style={{ marginRight: 8 }} />
-                      ) : null}
-                      <Text className="text-white text-lg font-semibold">
-                        {loading && page > 1 ? "Loading..." : "Show more"}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-
-              {/* Share your link section */}
-              <View className="mx-6 my-4">
-                <View className="flex-row items-center mb-4">
-                  <Feather name="share" size={22} color="white" />
-                  <Text className="text-white text-xl font-bold ml-2">
-                    Share your Locket link
-                  </Text>
-                </View>
-
-                <TouchableOpacity className="flex-row items-center bg-zinc-900 rounded-full py-3 px-4 mb-10">
-                  <View
-                    style={styles.messengerIcon}
-                    className="rounded-full justify-center items-center mr-3"
+              {/* Show more button - only if there are more friends to load */}
+              {friends.length > 0 && friends.length < totalFriends && (
+                <View className="items-center mt-6 mb-4">
+                  <TouchableOpacity
+                    className="bg-zinc-800 py-3 px-10 rounded-full flex-row items-center"
+                    onPress={handleLoadMore}
                   >
-                    <FontAwesome5
-                      name="facebook-messenger"
-                      size={28}
-                      color="white"
-                    />
-                  </View>
-                  <Text className="text-white text-xl font-semibold">
-                    Messenger
-                  </Text>
-                  <Feather
-                    name="chevron-right"
-                    size={24}
-                    color="white"
-                    style={{ marginLeft: "auto" }}
-                  />
-                </TouchableOpacity>
+                    {loading && page > 1 ? (
+                      <ActivityIndicator
+                        size="small"
+                        color="white"
+                        style={{ marginRight: 8 }}
+                      />
+                    ) : null}
+                    <Text className="text-white text-lg font-semibold">
+                      {loading && page > 1 ? "Loading..." : "Show more"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* Share your link section */}
+            <View className="mx-6 my-4">
+              <View className="flex-row items-center mb-4">
+                <Feather name="share" size={22} color="white" />
+                <Text className="text-white text-xl font-bold ml-2">
+                  Share your Locket link
+                </Text>
               </View>
-            </ScrollView>
-          )}
-        </SafeAreaView>
-      </Animated.View>
+
+              <TouchableOpacity className="flex-row items-center bg-zinc-900 rounded-full py-3 px-4 mb-10">
+                <View
+                  style={styles.messengerIcon}
+                  className="rounded-full justify-center items-center mr-3"
+                >
+                  <FontAwesome5
+                    name="facebook-messenger"
+                    size={28}
+                    color="white"
+                  />
+                </View>
+                <Text className="text-white text-xl font-semibold">
+                  Messenger
+                </Text>
+                <Feather
+                  name="chevron-right"
+                  size={24}
+                  color="white"
+                  style={{ marginLeft: "auto" }}
+                />
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        )}
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   modalContainer: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: -4,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 10,
+    borderTopLeftRadius: 60,
+    borderTopRightRadius: 60,
   },
   socialIconContainer: {
     width: 60,

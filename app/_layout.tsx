@@ -34,16 +34,16 @@ export default function RootLayout() {
   
   return (
     <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: 'none',
-      }}
-    >
-      <Stack.Screen name="(public)/welcome" options={{ title: 'Welcome' }} />
-      <Stack.Screen name="(public)/about" options={{ title: 'About' }} />
-
-      <Stack.Screen name="(auth)/sign-in" options={{ title: 'Sign In' }} />
-      <Stack.Screen name="(auth)/sign-up" options={{ title: 'Create Account' }} />
-    </Stack>
+    screenOptions={{
+      headerShown: false,
+    }}
+  >
+    <Stack.Screen name="welcome" options={{ 
+      title: 'Welcome', 
+    }} />
+    
+    <Stack.Screen name="(app)" options={{ 
+    }} />
+  </Stack>
   );
 }

@@ -113,7 +113,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View className="flex-1 bg-black">
+    <View className="flex-1 bg-custom-dark">
       <StatusBar barStyle="light-content" />
 
       {/* Header */}
@@ -144,7 +144,7 @@ export default function ProfileScreen() {
               <Ionicons name="settings-sharp" size={28} color="white" />
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => router.push("/(test)/camera-test")}
+              onPress={() => router.back()}
             >
               <FontAwesome name="chevron-right" size={24} color="white" />
             </TouchableOpacity>
@@ -205,3 +205,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
 });
+
+
