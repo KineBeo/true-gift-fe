@@ -30,13 +30,6 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import filesService, { FileDto } from "@/lib/services/files";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSpring,
-  runOnJS,
-} from "react-native-reanimated";
 import * as FileSystem from "expo-file-system";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -123,7 +116,6 @@ export default function Home() {
   const [flash, setFlash] = useState(false);
   const [sending, setSending] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<number | null>(null);
-  const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [myPhotos, setMyPhotos] = useState<FileDto[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [groupedPhotos, setGroupedPhotos] = useState<
@@ -131,7 +123,7 @@ export default function Home() {
   >([]);
   const [selectedPhoto, setSelectedPhoto] = useState<FileDto | null>(null);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
-  const [activeScreen, setActiveScreen] = useState<'camera' | 'feed'>('camera');
+  const [feedModalVisible, setFeedModalVisible] = useState(false);
   const router = useRouter();
   
   useEffect(() => {
@@ -187,20 +179,13 @@ export default function Home() {
   }, []);
 
   const showHistory = () => {
-    openHistoryModal();
+    fetchMyPhotos();
+    setFeedModalVisible(true);
   };
 
   const handleLogout = async () => {
     await logout();
     router.replace("/welcome");
-  };
-  
-  const showFeed = () => {
-    setActiveScreen('feed');
-  };
-  
-  const showCamera = () => {
-    setActiveScreen('camera');
   };
 
   if (!user) {
@@ -276,14 +261,14 @@ export default function Home() {
 
     try {
       // console.log(`Attempting to upload photo: ${uri}`);
-
+      
       // Check if the URI is valid for upload - must be a local file:// or content:// URI
       if (!uri.startsWith("file://") && !uri.startsWith("content://")) {
         console.warn(
           `URI format might not be compatible: ${uri.substring(0, 20)}...`
         );
       }
-
+      
       // Try getting file info if possible
       try {
         const fileInfo = await FileSystem.getInfoAsync(uri);
@@ -292,14 +277,14 @@ export default function Home() {
         //   size: fileInfo.exists ? (fileInfo as any).size : 'N/A',
         //   uri: fileInfo.uri.substring(0, 30) + '...' // Truncate for logging
         // });
-
+        
         if (!fileInfo.exists) {
           throw new Error("File does not exist at the specified URI");
         }
       } catch (fileInfoError) {
         console.warn("Unable to verify file info:", fileInfoError);
       }
-
+      
       // Upload the photo - always use the default 'message' type
       // If no friend is selected, we'll just upload without specifying a recipient
       const response = await filesService.uploadPhoto(uri, {
@@ -319,7 +304,7 @@ export default function Home() {
               // Reset the camera view
               setUri(null);
               setSending(false);
-
+              
               // Refresh the photo history to show the new photo
               fetchMyPhotos();
             },
@@ -335,7 +320,7 @@ export default function Home() {
         "Error details:",
         error instanceof Error ? error.message : "Unknown error"
       );
-
+      
       // More user-friendly error message
       Alert.alert(
         "Upload Failed",
@@ -524,23 +509,15 @@ export default function Home() {
           </Pressable>
         </View>
 
-        {/* History and Feed buttons */}
+        {/* History button */}
         <View className="absolute bottom-32 w-full flex-row justify-center space-x-4">
-          <Pressable 
+          <TouchableOpacity
             className="flex-row items-center bg-zinc-800/80 py-2 px-6 rounded-full"
             onPress={showHistory}
           >
             <Feather name="image" size={22} color="white" />
             <Text className="text-white ml-2 font-bold text-2xl">History</Text>
-          </Pressable>
-          
-          <Pressable 
-            className="flex-row items-center bg-zinc-800/80 py-2 px-6 rounded-full"
-            onPress={showFeed}
-          >
-            <Feather name="activity" size={22} color="white" />
-            <Text className="text-white ml-2 font-bold text-2xl">Feed</Text>
-          </Pressable>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -563,74 +540,117 @@ export default function Home() {
              />
           </View>
         </View>
+
+        {/* Bottom controls */}
+        <View className="flex-row w-full justify-between px-16 absolute bottom-16 items-center">
+          {/* History Button */}
+          <TouchableOpacity
+            // onPress={toggleFlash}
+            className="items-center justify-center w-12 h-12"
+          >
+            <Ionicons
+              name={"grid"}
+              size={35}
+              color="white"
+            />
+          </TouchableOpacity>
+
+          {/* Capture button */}
+          <Pressable
+            // onPress={mode === "picture" ? takePicture : recordVideo}
+            style={styles.captureButton}
+          >
+            <View
+              style={[
+                styles.captureButtonInner,
+                recording && { backgroundColor: "red" },
+              ]}
+            />
+          </Pressable>
+
+          {/* Share Button */}
+          <TouchableOpacity
+            // onPress={toggleFacing}
+            className="items-center justify-center w-12 h-12"
+          >
+            <Ionicons name="share-social" size={35} color="white" />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
   
-  const renderFeed = () => {
+  const renderFeedModal = () => {
     return (
-      <View style={styles.mainContainer}>
-        {loadingPhotos ? (
-          <View style={styles.feedLoadingContainer}>
-            <ActivityIndicator size="large" color="#FFB800" />
-            <Text style={styles.feedLoadingText}>Loading your photos...</Text>
-          </View>
-        ) : myPhotos.length === 0 ? (
-          <View style={styles.feedEmptyContainer}>
-            <Ionicons name="images-outline" size={60} color="#999" />
-            <Text style={styles.feedEmptyText}>No photos yet</Text>
-            <Text style={styles.feedEmptySubtext}>
-              Take your first photo to see it here
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={myPhotos}
-            keyExtractor={(item) => item.id}
-            renderItem={renderFeedItem}
-            pagingEnabled
-            showsVerticalScrollIndicator={false}
-            snapToInterval={SCREEN_HEIGHT}
-            snapToAlignment="start"
-            decelerationRate="fast"
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefreshPhotos}
-                tintColor="#FFB800"
-                colors={["#FFB800"]}
-              />
-            }
-          />
-        )}
-        
-        {/* Feed control buttons */}
-        <View className="absolute top-16 w-full flex-row justify-between px-8 mt-4">
-          <Pressable
-            className="bg-zinc-800/80 p-4 rounded-full"
-            onPress={() => router.push("/profile")}
-          >
-            <Ionicons name="person" size={22} color="white" />
-          </Pressable>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={feedModalVisible}
+        onRequestClose={() => setFeedModalVisible(false)}
+      >
+        <View style={styles.mainContainer}>
+          {loadingPhotos ? (
+            <View style={styles.feedLoadingContainer}>
+              <ActivityIndicator size="large" color="#FFB800" />
+              <Text style={styles.feedLoadingText}>Loading your photos...</Text>
+            </View>
+          ) : myPhotos.length === 0 ? (
+            <View style={styles.feedEmptyContainer}>
+              <Ionicons name="images-outline" size={60} color="#999" />
+              <Text style={styles.feedEmptyText}>No photos yet</Text>
+              <Text style={styles.feedEmptySubtext}>
+                Take your first photo to see it here
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={myPhotos}
+              keyExtractor={(item) => item.id}
+              renderItem={renderFeedItem}
+              pagingEnabled
+              showsVerticalScrollIndicator={false}
+              snapToInterval={SCREEN_HEIGHT}
+              snapToAlignment="start"
+              decelerationRate="fast"
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefreshPhotos}
+                  tintColor="#FFB800"
+                  colors={["#FFB800"]}
+                />
+              }
+            />
+          )}
+          
+          {/* Feed control buttons */}
+          <View className="absolute top-16 w-full flex-row justify-between px-8 mt-4">
+            <Pressable
+              className="bg-zinc-800/80 p-4 rounded-full"
+              onPress={() => router.push("/profile")}
+            >
+              <Ionicons name="person" size={22} color="white" />
+            </Pressable>
 
-          <Pressable
-            className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center"
-            onPress={showCamera}
-          >
-            <Ionicons name="camera" size={22} color="white" />
-            <Text className="text-white ml-2 font-extrabold text-xl">
-              Camera
-            </Text>
-          </Pressable>
+            <Pressable
+              className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center"
+              onPress={() => setFeedModalVisible(false)}
+            >
+              <Ionicons name="camera" size={22} color="white" />
+              <Text className="text-white ml-2 font-extrabold text-xl">
+                Camera
+              </Text>
+            </Pressable>
 
-          <Pressable
-            className="bg-zinc-800/80 p-4 rounded-full"
-            onPress={() => router.push("/message")}
-          >
-            <Ionicons name="chatbubble" size={22} color="white" />
-          </Pressable>
+            <Pressable
+              className="bg-zinc-800/80 p-4 rounded-full"
+              onPress={() => router.push("/message")}
+            >
+              <Ionicons name="chatbubble" size={22} color="white" />
+            </Pressable>
+          </View>
         </View>
-      </View>
+      </Modal>
     );
   };
 
@@ -638,11 +658,8 @@ export default function Home() {
     <>
       <StatusBar style="light" />
       <View style={styles.mainContainer}>
-        {activeScreen === 'camera' ? (
-          uri ? renderPicture() : renderCamera()
-        ) : (
-          renderFeed()
-        )}
+        {uri ? renderPicture() : renderCamera()}
+        {renderFeedModal()}
       </View>
     </>
   );
@@ -672,8 +689,8 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   captureButton: {
-    width: 95,
-    height: 95,
+    width: 75,
+    height: 75,
     borderRadius: 50,
     borderWidth: 5,
     borderColor: "#FFB800",
@@ -692,8 +709,8 @@ const styles = StyleSheet.create({
     backgroundColor: "gray",
   },
   captureButtonInner: {
-    width: 75,
-    height: 75,
+    width: 55,
+    height: 55,
     borderRadius: 50,
     backgroundColor: "white",
   },

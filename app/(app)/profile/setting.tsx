@@ -14,9 +14,15 @@ import {
   FontAwesome,
   MaterialIcons,
 } from "@expo/vector-icons";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 export default function Setting() {
   const router = useRouter();
+
+  const handleLogout = () => {
+    useAuthStore.getState().logout();
+    router.replace("/");
+  };
 
   const renderSettingItem = (
     icon: JSX.Element,
@@ -174,9 +180,10 @@ export default function Setting() {
               <FontAwesome name="chevron-right" size={18} color="#9CA3AF" />
             )}
             {renderSettingItem(
-              <Feather name="slash" size={24} color="white" />,
+              <Feather name="log-out" size={24} color="#FF3B30" />,
               "Sign out",
-              <FontAwesome name="chevron-right" size={18} color="#9CA3AF" />
+              <FontAwesome name="chevron-right" size={18} color="#9CA3AF" />,
+              handleLogout
             )}
           </View>
         </View>

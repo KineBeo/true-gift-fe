@@ -191,23 +191,23 @@ export default function ChatDetail() {
 
     return (
       <View 
-        className={`px-4 py-3 my-1 max-w-[80%] rounded-3xl ${
+        className={`px-4 py-2 my-1 max-w-[80%] rounded-2xl ${
           isUserMessage 
-            ? 'bg-gray-300 self-end rounded-tr-none' 
-            : 'bg-gray-800 self-start rounded-tl-none'
+            ? 'bg-gray-300 self-end' 
+            : 'bg-gray-800 self-start'
         }`}
         style={isUserMessage ? styles.sentMessage : styles.receivedMessage}
       >
         <Text 
-          className={`${isUserMessage ? 'text-black' : 'text-white'} text-base`}
+          className={`${isUserMessage ? 'text-black' : 'text-white'} text-base font-extrabold`}
         >
           {item.content}
         </Text>
-        <Text 
+        {/* <Text 
           className={`${isUserMessage ? 'text-gray-600' : 'text-gray-400'} text-xs mt-1 text-right`}
         >
           {formatMessageTime(item.createdAt)}
-        </Text>
+        </Text> */}
       </View>
     )
   }
@@ -256,34 +256,33 @@ export default function ChatDetail() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 5 : 0}
       >
         {/* Header */}
-        <View className="p-4 border-b border-zinc-800 flex-row items-center justify-between">
+        <View className="p-4 flex-row items-center justify-center">
+          <TouchableOpacity 
+            onPress={() => router.back()}
+            className="absolute left-4"
+          >
+            <Ionicons name="chevron-back" size={28} color="white" />
+          </TouchableOpacity>
+          
           <View className="flex-row items-center">
-            <TouchableOpacity 
-              onPress={() => router.back()}
-              className="mr-3"
-            >
-              <Ionicons name="chevron-back" size={28} color="white" />
-            </TouchableOpacity>
-            
             <Image
               source={{ uri: friendDetails.avatar || 'https://picsum.photos/200' }}
               style={styles.avatar}
-              className="rounded-full"
+              contentFit="contain"
             />
             
-            <Text className="text-white text-xl font-bold ml-3">
+            <Text className="text-white text-2xl font-bold ml-3">
               {friendDetails.name}
             </Text>
           </View>
           
-          <TouchableOpacity>
+          <TouchableOpacity className="absolute right-4">
             <Ionicons name="ellipsis-horizontal" size={24} color="white" />
           </TouchableOpacity>
         </View>
@@ -308,12 +307,12 @@ export default function ChatDetail() {
         />
         
         {/* Message Input */}
-        <View className="p-2 border-t border-zinc-800" style={styles.inputContainer}>
+        <View className="p-2">
           <View className="flex-row items-center bg-zinc-800 rounded-full px-4 py-2">
             <TextInput
-              className="flex-1 text-white text-base mr-2"
+              className="flex-1 text-gray-300 text-base mr-2 font-bold p-2"
               placeholder="Send message..."
-              placeholderTextColor="#777"
+              placeholderTextColor="white"
               value={inputMessage}
               onChangeText={setInputMessage}
               style={styles.input}
@@ -330,23 +329,23 @@ export default function ChatDetail() {
                 disabled={sending}
                 onPress={sendMessage}
               >
-                <AntDesign 
-                  name="arrowright" 
-                  size={24} 
+                <Ionicons 
+                  name="arrow-up-circle-sharp" 
+                  size={30} 
                   color={inputMessage.trim() ? "#FFC83C" : "#555"} 
                 />
               </TouchableOpacity>
               
               <TouchableOpacity className="mr-3">
-                <MaterialIcons name="emoji-emotions" size={24} color="#FFC83C" />
+                <MaterialIcons name="emoji-emotions" size={30} color="#FFC83C" />
               </TouchableOpacity>
               
               <TouchableOpacity className="mr-3">
-                <Ionicons name="flame" size={24} color="#F24E1E" />
+                <Ionicons name="flame" size={30} color="#F24E1E" />
               </TouchableOpacity>
               
               <TouchableOpacity>
-                <Ionicons name="happy-outline" size={24} color="#ABABAB" />
+                <Ionicons name="happy-outline" size={30} color="#ABABAB" />
               </TouchableOpacity>
             </View>
           </View>
@@ -359,11 +358,12 @@ export default function ChatDetail() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: 'black',
   },
   avatar: {
     width: 36,
-    height: 36
+    height: 36,
+    borderRadius: 20,
   },
   sentMessage: {
     marginLeft: 40

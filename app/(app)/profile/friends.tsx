@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,9 @@ import {
   Image,
   Dimensions,
   ActivityIndicator,
+  Modal,
+  FlatList,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import {
@@ -18,6 +21,7 @@ import {
   Ionicons,
   FontAwesome5,
   MaterialCommunityIcons,
+  AntDesign,
 } from "@expo/vector-icons";
 import Animated, {
   useSharedValue,
@@ -26,7 +30,7 @@ import Animated, {
   Easing,
   runOnJS,
 } from "react-native-reanimated";
-import friendsService, { FriendDto } from "../../../lib/services/friends";
+import friendsService, { FriendDto, UserDto } from "../../../lib/services/friends";
 import { useAuthStore } from "../../../lib/stores/auth-store";
 
 const { width } = Dimensions.get("window");
@@ -84,6 +88,20 @@ export default function FriendsScreen() {
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const limit = 10;
+  
+  // Add friend modal state
+  const [isSearchModalVisible, setIsSearchModalVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<UserDto[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [loadingMoreSearchResults, setLoadingMoreSearchResults] = useState(false);
+  const [searchPage, setSearchPage] = useState(1);
+  const [hasMoreSearchResults, setHasMoreSearchResults] = useState(true);
+  const [sendingRequests, setSendingRequests] = useState<Record<number, boolean>>({});
+  const searchInputRef = useRef<TextInput>(null);
+
+  // Add state for request processing
+  const [processingRequests, setProcessingRequests] = useState<Record<string | number, { accepting: boolean; declining: boolean }>>({});
 
   // Helper function to format FriendDto into our Friend interface
   const formatFriend = (friendData: FriendDto): Friend => {
@@ -193,6 +211,174 @@ export default function FriendsScreen() {
     }
   };
 
+  // Handle search user functionality
+  const handleSearch = async (resetResults = true) => {
+    if (!searchQuery.trim()) return;
+    
+    try {
+      if (resetResults) {
+        setIsSearching(true);
+        setSearchResults([]);
+        setSearchPage(1);
+        setHasMoreSearchResults(true);
+      } else {
+        setLoadingMoreSearchResults(true);
+      }
+      
+      const response = await friendsService.searchUsers(searchQuery, { 
+        page: resetResults ? 1 : searchPage, 
+        limit: 10 
+      });
+      
+      if (resetResults) {
+        setSearchResults(response.data);
+      } else {
+        setSearchResults(prev => [...prev, ...response.data]);
+      }
+      
+      setHasMoreSearchResults(response.hasNextPage);
+    } catch (err) {
+      console.error("Error searching users:", err);
+      Alert.alert("Error", "Failed to search users. Please try again.");
+    } finally {
+      if (resetResults) {
+        setIsSearching(false);
+      } else {
+        setLoadingMoreSearchResults(false);
+      }
+    }
+  };
+
+  // Handle loading more search results
+  const handleLoadMoreSearchResults = () => {
+    if (!hasMoreSearchResults || loadingMoreSearchResults) return;
+    
+    setSearchPage(prev => prev + 1);
+  };
+
+  // Watch for searchPage changes to load more results
+  useEffect(() => {
+    if (searchPage > 1 && hasMoreSearchResults) {
+      handleSearch(false);
+    }
+  }, [searchPage]);
+
+  // Handle send friend request
+  const handleSendRequest = async (userId: number) => {
+    try {
+      setSendingRequests(prev => ({ ...prev, [userId]: true }));
+      
+      await friendsService.sendFriendRequest({ friendId: userId });
+      
+      // Show success message
+      Alert.alert("Success", "Friend request sent successfully!");
+      
+      // Remove from search results to avoid duplicate requests
+      setSearchResults(prev => prev.filter(user => user.id !== userId));
+    } catch (err) {
+      console.error("Error sending friend request:", err);
+      Alert.alert("Error", "Failed to send friend request. Please try again.");
+    } finally {
+      setSendingRequests(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  // Handle accepting friend request
+  const handleAcceptRequest = async (requestId: string | number) => {
+    try {
+      // Set loading state for this specific request
+      setProcessingRequests(prev => ({
+        ...prev,
+        [requestId]: {
+          ...prev[requestId],
+          accepting: true
+        }
+      }));
+      
+      // Convert to string if it's a number
+      const friendshipId = typeof requestId === 'number' ? String(requestId) : requestId;
+      
+      // Call the API with the friendship ID
+      await friendsService.acceptFriendRequest(friendshipId);
+      
+      // Update the UI by removing the request from the list and refreshing friends
+      setFriendRequests(prev => prev.filter(request => request.id !== requestId));
+      
+      // Refresh friends list
+      fetchFriends();
+      
+      // Show success message
+      Alert.alert("Success", "Friend request accepted!");
+    } catch (err) {
+      console.error("Error accepting friend request:", err);
+      Alert.alert("Error", "Failed to accept friend request. Please try again.");
+    } finally {
+      // Clear loading state
+      setProcessingRequests(prev => ({
+        ...prev,
+        [requestId]: {
+          ...prev[requestId],
+          accepting: false
+        }
+      }));
+    }
+  };
+  
+  // Handle declining friend request
+  const handleDeclineRequest = async (requestId: string | number) => {
+    try {
+      // Set loading state for this specific request
+      setProcessingRequests(prev => ({
+        ...prev,
+        [requestId]: {
+          ...prev[requestId],
+          declining: true
+        }
+      }));
+      
+      // Convert to string if it's a number
+      const friendshipId = typeof requestId === 'number' ? String(requestId) : requestId;
+      
+      // Call the API with the friendship ID to remove it
+      await friendsService.removeFriend(friendshipId);
+      
+      // Update the UI by removing the request from the list
+      setFriendRequests(prev => prev.filter(request => request.id !== requestId));
+      
+      // Show success message
+      Alert.alert("Success", "Friend request declined!");
+    } catch (err) {
+      console.error("Error declining friend request:", err);
+      Alert.alert("Error", "Failed to decline friend request. Please try again.");
+    } finally {
+      // Clear loading state
+      setProcessingRequests(prev => ({
+        ...prev,
+        [requestId]: {
+          ...prev[requestId],
+          declining: false
+        }
+      }));
+    }
+  };
+
+  const openSearchModal = () => {
+    setIsSearchModalVisible(true);
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchPage(1);
+    setHasMoreSearchResults(true);
+    
+    // Focus the search input when modal opens
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 300);
+  };
+
+  const closeSearchModal = () => {
+    setIsSearchModalVisible(false);
+  };
+
   // const animatedStyles = useAnimatedStyle(() => {
   //   return {
   //     transform: [{ translateY: translateY.value }],
@@ -226,29 +412,108 @@ export default function FriendsScreen() {
   );
 
   // Render a friend item
-  const renderFriend = (friend: Friend) => (
-    <View
-      key={friend.id}
-      className="flex-row items-center justify-between py-3 px-2"
-    >
-      <View className="flex-row items-center">
-        <View className="w-16 h-16 rounded-full overflow-hidden border-2 border-yellow-400">
-          {friend.avatarUrl ? (
-            <Image source={{ uri: friend.avatarUrl }} style={styles.avatar} />
-          ) : (
-            <View className="w-full h-full bg-gray-700 justify-center items-center">
-              <Text className="text-white text-xl font-bold">
-                {friend.avatarInitials}
-              </Text>
-            </View>
-          )}
+  const renderFriend = (friend: Friend, isFriendRequest = false) => {
+    const requestProcessing = processingRequests[friend.id] || { accepting: false, declining: false };
+    
+    return (
+      <View
+        key={friend.id}
+        className="flex-row items-center justify-between py-3 px-2"
+      >
+        <View className="flex-row items-center">
+          <View className="w-12 h-12 rounded-full overflow-hidden border-2 border-yellow-400">
+            {friend.avatarUrl ? (
+              <Image source={{ uri: friend.avatarUrl }} style={styles.avatar} />
+            ) : (
+              <View className="w-full h-full bg-gray-700 justify-center items-center">
+                <Text className="text-white text-xl font-bold">
+                  {friend.avatarInitials}
+                </Text>
+              </View>
+            )}
+          </View>
+          <Text className="text-white text-xl font-semibold ml-4">
+            {friend.name}
+          </Text>
         </View>
-        <Text className="text-white text-xl font-semibold ml-4">
-          {friend.name}
-        </Text>
+        
+        {isFriendRequest && (
+          <View className="flex-row">
+            <TouchableOpacity
+              className="bg-yellow-600 px-4 py-2 rounded-full mr-2"
+              onPress={() => handleAcceptRequest(friend.id)}
+              disabled={requestProcessing.accepting || requestProcessing.declining}
+            >
+              {requestProcessing.accepting ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Text className="text-white font-medium">Accept</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="bg-zinc-700 px-4 py-2 rounded-full"
+              onPress={() => handleDeclineRequest(friend.id)}
+              disabled={requestProcessing.accepting || requestProcessing.declining}
+            >
+              {requestProcessing.declining ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Text className="text-white font-medium">Decline</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
-    </View>
-  );
+    );
+  };
+
+  // Render search result item
+  const renderSearchResult = ({ item }: { item: UserDto }) => {
+    const isSending = sendingRequests[item.id] || false;
+    const fullName = `${item.firstName} ${item.lastName}`;
+    const initials = item.firstName.charAt(0) + item.lastName.charAt(0);
+    
+    return (
+      <View className="flex-row items-center justify-between py-4 border-b border-gray-800">
+        <View className="flex-row items-center flex-1">
+          <View className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 justify-center items-center mr-3">
+            {item.photo ? (
+              <Image source={{ uri: item.photo }} className="w-full h-full" />
+            ) : (
+              <Text className="text-white text-lg font-bold">{initials}</Text>
+            )}
+          </View>
+          <View className="flex-1">
+            <Text className="text-white text-lg font-medium">{fullName}</Text>
+            <Text className="text-gray-400 text-sm">{item.email}</Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          className="bg-yellow-600 px-3 py-2 rounded-full"
+          onPress={() => handleSendRequest(item.id)}
+          disabled={isSending}
+        >
+          {isSending ? (
+            <ActivityIndicator size="small" color="white" />
+          ) : (
+            <Text className="text-white font-medium">Add</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    );
+  };
+  
+  // Render footer for search results list (loading indicator)
+  const renderSearchListFooter = () => {
+    if (!loadingMoreSearchResults) return null;
+    
+    return (
+      <View className="py-4 items-center">
+        <ActivityIndicator size="small" color="#FFC107" />
+        <Text className="text-gray-400 mt-2">Loading more results...</Text>
+      </View>
+    );
+  };
 
   return (
     <View className="bg-custom-dark h-full" style={styles.modalContainer}>
@@ -287,7 +552,10 @@ export default function FriendsScreen() {
             </Text>
 
             {/* Search bar */}
-            <TouchableOpacity className="mx-6 mb-6 flex-row items-center bg-zinc-800 rounded-full px-4 py-3">
+            <TouchableOpacity 
+              className="mx-6 mb-6 flex-row items-center bg-zinc-800 rounded-full px-4 py-3"
+              onPress={openSearchModal}
+            >
               <Feather name="search" size={22} color="#9CA3AF" />
               <Text className="text-gray-400 text-lg ml-2">
                 Add a new friend
@@ -325,7 +593,7 @@ export default function FriendsScreen() {
                 </View>
 
                 <View className="bg-zinc-900 rounded-3xl px-4 py-3 divide-y divide-zinc-800">
-                  {friendRequests.map((request) => renderFriend(request))}
+                  {friendRequests.map((request) => renderFriend(request, true))}
                 </View>
               </View>
             )}
@@ -408,6 +676,90 @@ export default function FriendsScreen() {
           </ScrollView>
         )}
       </SafeAreaView>
+      
+      {/* Search User Modal */}
+      <Modal
+        visible={isSearchModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={closeSearchModal}
+      >
+        <View className="flex-1 bg-black/95">
+          <SafeAreaView className="flex-1">
+            <View className="px-4 py-3 flex-row items-center border-b border-gray-800">
+              <TouchableOpacity onPress={closeSearchModal} className="pr-3">
+                <AntDesign name="close" size={24} color="white" />
+              </TouchableOpacity>
+              
+              <View className="flex-1 flex-row items-center bg-zinc-800 rounded-full px-4 py-2">
+                <Feather name="search" size={18} color="#9CA3AF" />
+                <TextInput
+                  ref={searchInputRef}
+                  className="flex-1 ml-2 text-white text-base"
+                  placeholder="Search by name or email"
+                  placeholderTextColor="#9CA3AF"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  onSubmitEditing={() => handleSearch(true)}
+                  returnKeyType="search"
+                  autoCapitalize="none"
+                />
+                {searchQuery ? (
+                  <TouchableOpacity onPress={() => setSearchQuery("")}>
+                    <Feather name="x" size={18} color="#9CA3AF" />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              
+              <TouchableOpacity 
+                className="pl-3" 
+                onPress={() => handleSearch(true)}
+                disabled={!searchQuery.trim() || isSearching}
+              >
+                <Text className={`font-medium ${searchQuery.trim() && !isSearching ? 'text-yellow-500' : 'text-gray-500'}`}>
+                  Search
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View className="flex-1 px-4">
+              {isSearching ? (
+                <View className="flex-1 justify-center items-center">
+                  <ActivityIndicator size="large" color="#FFC107" />
+                  <Text className="text-white mt-4">Searching users...</Text>
+                </View>
+              ) : searchResults.length > 0 ? (
+                <FlatList
+                  data={searchResults}
+                  renderItem={renderSearchResult}
+                  keyExtractor={(item) => item.id.toString()}
+                  contentContainerStyle={{ paddingVertical: 12 }}
+                  ListFooterComponent={renderSearchListFooter}
+                  onEndReached={handleLoadMoreSearchResults}
+                  onEndReachedThreshold={0.2}
+                />
+              ) : searchQuery.trim() ? (
+                <View className="flex-1 justify-center items-center">
+                  <Feather name="user-x" size={48} color="#9CA3AF" />
+                  <Text className="text-white text-lg mt-4 text-center">
+                    No users found matching "{searchQuery}"
+                  </Text>
+                  <Text className="text-gray-400 text-sm mt-2 text-center">
+                    Try a different search term or invite them to join
+                  </Text>
+                </View>
+              ) : (
+                <View className="flex-1 justify-center items-center">
+                  <Feather name="users" size={48} color="#9CA3AF" />
+                  <Text className="text-white text-lg mt-4 text-center">
+                    Search for friends by name or email
+                  </Text>
+                </View>
+              )}
+            </View>
+          </SafeAreaView>
+        </View>
+      </Modal>
     </View>
   );
 }

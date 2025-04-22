@@ -47,6 +47,20 @@ export interface CreateFriendRequest {
   email?: string;
 }
 
+export interface UserDto {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  photo?: string;
+  // Other user fields may be added here
+}
+
+export interface SearchUsersResponse {
+  data: UserDto[];
+  hasNextPage: boolean;
+}
+
 const friendsService = {
   getFriends: (params?: FriendParams): Promise<GetFriendsResponse> => {
     return apiService.get('/friends', params);
@@ -60,12 +74,17 @@ const friendsService = {
     return apiService.post('/friends', data);
   },
 
-  acceptFriendRequest: (friendId: number): Promise<void> => {
-    return apiService.post(`/friends/${friendId}/accept`, {});
+  acceptFriendRequest: (friendshipId: string): Promise<void> => {
+    const id = typeof friendshipId === 'number' ? String(friendshipId) : friendshipId;
+    return apiService.post(`/friends/${id}/accept`, {});
   },
 
   removeFriend: (friendId: string): Promise<void> => {
     return apiService.delete(`/friends/${friendId}`);
+  },
+  
+  searchUsers: (search: string, params?: { page?: number; limit?: number }): Promise<SearchUsersResponse> => {
+    return apiService.get('/users/search', { search, ...params });
   }
 };
 
