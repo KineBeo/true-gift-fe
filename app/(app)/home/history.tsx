@@ -67,62 +67,56 @@ export default function History() {
   }, []);
 
   const fetchMyPhotos = async (): Promise<ExtendedFileDto[]> => {
-    console.log("📸 Fetching my photos...");
     try {
-      const response = await filesService.getMyPhotos();
-      console.log("✅ My photos response:", {
-        count: response?.data?.length || 0,
-        success: !!response?.data,
-        sample: response?.data?.slice(0, 2) || []
+      console.log("🔍 Fetching my photos from API...");
+      const { data } = await filesService.getMyPhotos();
+      console.log("✅ My photos fetch successful, count:", data.length);
+      
+      // Add more detailed logging
+      console.log("📝 My photos data structure:", {
+        dataType: Array.isArray(data) ? 'Array' : typeof data,
+        count: data.length,
+        samplePath: data.length > 0 ? data[0].path : 'none',
+        sampleUrl: data.length > 0 ? filesService.getFileUrl(data[0].path) : 'none',
       });
       
-      if (response && response.data) {
-        const myPhotos = response.data.map((photo: FileDto) => ({
-          ...photo,
-          userId: null, // Mark as my own photo
-          userName: null,
-        }));
-        console.log(`📸 Fetched ${myPhotos.length} of my photos`);
-        return myPhotos;
-      }
-      return [];
+      // Map to ExtendedFileDto for consistency
+      return data.map((file: FileDto) => ({
+        ...file,
+        // No need to add user info for own photos
+      }));
     } catch (error) {
       console.error("❌ Error fetching my photos:", error);
+      // Return empty array on error to continue with friends photos
       return [];
     }
   };
 
   const fetchFriendsPhotos = async (): Promise<ExtendedFileDto[]> => {
-    console.log("👥 Fetching friends' photos...");
     try {
-      setLoadingFriendPhotos(true);
-      const response = await filesService.getAllFriendsPhotos();
+      console.log("🔍 Fetching friends photos from API...");
+      const { data } = await filesService.getAllFriendsPhotos();
+      console.log("✅ Friends photos fetch successful, count:", data.length);
       
-      if (response && response.data) {
-        console.log("✅ Friends photos API response:", {
-          count: response.data.length,
-          hasFriendData: response.data.some((photo: ExtendedFileDto) => photo.userId && photo.userName),
-          userIds: response.data.map((photo: ExtendedFileDto) => photo.userId).filter(Boolean),
-          userNames: response.data.map((photo: ExtendedFileDto) => photo.userName).filter(Boolean),
-          sample: response.data.slice(0, 2)
+      // Add more detailed logging for the first friend photo if available
+      if (data.length > 0) {
+        const sample = data[0];
+        console.log("📝 Sample friend photo data:", {
+          id: sample.id,
+          path: sample.path,
+          url: filesService.getFileUrl(sample.path),
+          userId: sample.userId,
+          userName: sample.userName,
+          createdAt: sample.createdAt,
+          isIpfs: isIPFSImage(sample.path)
         });
-        
-        // Check for photos with missing user info
-        const missingUserInfo = response.data.filter((photo: ExtendedFileDto) => photo.userId && !photo.userName);
-        if (missingUserInfo.length > 0) {
-          console.warn("⚠️ Some photos have userId but missing userName:", missingUserInfo.length);
-        }
-        
-        // The getAllFriendsPhotos already includes user information, no need for additional processing
-        return response.data;
       }
-      console.warn("⚠️ No friends photos data returned");
-      return [];
+      
+      return data;
     } catch (error) {
-      console.error("❌ Error fetching friend photos:", error);
+      console.error("❌ Error fetching friends photos:", error);
+      // Return empty array on error to continue with own photos
       return [];
-    } finally {
-      setLoadingFriendPhotos(false);
     }
   };
 
@@ -143,6 +137,22 @@ export default function History() {
       console.log("📊 Photos fetch statistics:", {
         myPhotosCount: myPhotos.length,
         friendPhotosCount: friendPhotos.length,
+        myPhotosFirstItem: myPhotos.length > 0 ? {
+          id: myPhotos[0].id,
+          path: myPhotos[0].path,
+          createdAt: myPhotos[0].createdAt,
+          isIpfs: isIPFSImage(myPhotos[0].path),
+          url: myPhotos.length > 0 ? filesService.getFileUrl(myPhotos[0].path) : 'none'
+        } : 'none',
+        friendPhotosFirstItem: friendPhotos.length > 0 ? {
+          id: friendPhotos[0].id,
+          path: friendPhotos[0].path,
+          createdAt: friendPhotos[0].createdAt,
+          userId: friendPhotos[0].userId,
+          userName: friendPhotos[0].userName,
+          isIpfs: isIPFSImage(friendPhotos[0].path),
+          url: friendPhotos.length > 0 ? filesService.getFileUrl(friendPhotos[0].path) : 'none'
+        } : 'none'
       });
       
       // Combine and sort all photos by date (newest first)
@@ -153,6 +163,20 @@ export default function History() {
       if (invalidDates.length > 0) {
         console.warn("⚠️ Found photos with invalid dates:", invalidDates.length);
         console.log("First invalid photo:", invalidDates[0]);
+      }
+      
+      // Check for duplicate IDs
+      const idCounts: Record<string, number> = {};
+      allPhotos.forEach(photo => {
+        idCounts[photo.id] = (idCounts[photo.id] || 0) + 1;
+      });
+      
+      const duplicateIds = Object.entries(idCounts)
+        .filter(([_, count]) => count > 1)
+        .map(([id]) => id);
+      
+      if (duplicateIds.length > 0) {
+        console.warn("⚠️ Found duplicate photo IDs:", duplicateIds);
       }
       
       allPhotos.sort((a: ExtendedFileDto, b: ExtendedFileDto) => {
@@ -168,6 +192,21 @@ export default function History() {
         ipfsCount: allPhotos.filter((p: ExtendedFileDto) => isIPFSImage(p.path)).length,
         friendPhotosCount: allPhotos.filter((p: ExtendedFileDto) => p.userId && p.userName).length
       });
+
+      // Log the first 3 photos for detailed inspection
+      if (allPhotos.length > 0) {
+        console.log("📸 Sample of fetched photos (first 3):", 
+          allPhotos.slice(0, 3).map(photo => ({
+            id: photo.id,
+            path: photo.path,
+            createdAt: photo.createdAt,
+            userId: photo.userId,
+            userName: photo.userName,
+            isIpfs: isIPFSImage(photo.path),
+            fullUrl: filesService.getFileUrl(photo.path)
+          }))
+        );
+      }
 
       setPhotos(allPhotos);
     } catch (error) {

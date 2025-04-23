@@ -20,6 +20,7 @@ import {
   StatusBar as RNStatusBar,
   Platform,
   Linking,
+  TextInput,
 } from "react-native";
 import { Image } from "expo-image";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -31,7 +32,8 @@ import { useRouter } from "expo-router";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import filesService, { FileDto } from "@/lib/services/files";
 import * as FileSystem from "expo-file-system";
-
+import messagesService from "@/lib/services/messages";
+import { homeStyles } from "./styles/homeStyles";
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const GRID_SPACING = 4;
 const NUM_COLUMNS = 3;
@@ -130,6 +132,11 @@ export default function Home() {
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [feedModalVisible, setFeedModalVisible] = useState(false);
   const router = useRouter();
+  const [messageText, setMessageText] = useState<string>("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [activeMessageItem, setActiveMessageItem] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -147,11 +154,6 @@ export default function Home() {
   useEffect(() => {
     fetchAllPhotos();
   }, []);
-
-  // const openHistoryModal = () => {
-  //   fetchMyPhotos();
-  //   router.push("/home/history");
-  // };
 
   const viewPhotoDetail = (photo: FileDto) => {
     setSelectedPhoto(photo);
@@ -291,7 +293,6 @@ export default function Home() {
     }
     setSending(true);
     try {
-    
       // Check if the URI is valid for upload - must be a local file:// or content:// URI
       if (!uri.startsWith("file://") && !uri.startsWith("content://")) {
         console.warn(
@@ -380,7 +381,7 @@ export default function Home() {
     return (
       <View className="flex-1 bg-black w-full items-center justify-center">
         {/* Take a picture */}
-        <View style={styles.cameraContainer}>
+        <View style={homeStyles.cameraContainer}>
           <Image
             source={{ uri }}
             contentFit="contain"
@@ -430,7 +431,7 @@ export default function Home() {
           <Pressable
             onPress={sendPicture}
             disabled={sending}
-            style={styles.sendButton}
+            style={homeStyles.sendButton}
           >
             {sending ? (
               <ActivityIndicator size="large" color="white" />
@@ -463,9 +464,9 @@ export default function Home() {
   const renderCamera = () => {
     return (
       <View className="flex-1 bg-black w-full items-center justify-center">
-        <View style={styles.cameraContainer}>
+        <View style={homeStyles.cameraContainer}>
           <CameraView
-            style={styles.camera}
+            style={homeStyles.camera}
             ref={ref}
             mode={mode}
             facing={facing}
@@ -482,9 +483,10 @@ export default function Home() {
             <Ionicons name="person" size={22} color="white" />
           </TouchableOpacity>
 
-          <TouchableOpacity 
-          onPress={() => router.push("/(app)/home/friends")}
-          className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center">
+          <TouchableOpacity
+            onPress={() => router.push("/(app)/home/friends")}
+            className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center"
+          >
             <Ionicons name="people" size={22} color="white" />
             <Text className="text-white ml-2 font-extrabold text-xl">
               1 Friends
@@ -515,11 +517,11 @@ export default function Home() {
           {/* Capture button */}
           <Pressable
             onPress={mode === "picture" ? takePicture : recordVideo}
-            style={styles.captureButton}
+            style={homeStyles.captureButton}
           >
             <View
               style={[
-                styles.captureButtonInner,
+                homeStyles.captureButtonInner,
                 recording && { backgroundColor: "red" },
               ]}
             />
@@ -547,52 +549,128 @@ export default function Home() {
     );
   };
 
-  const renderFeedItem = ({ item }: { item: FileDto }) => {
+  const sendMessageAboutPhoto = async (
+    userId: number | null | undefined,
+    photoURL: string,
+    message: string
+  ) => {
+    if (!userId || !message.trim()) {
+      Alert.alert(
+        "Error",
+        "Cannot send message. Invalid user or empty message."
+      );
+      return;
+    }
+
+    try {
+      setSendingMessage(true);
+
+      // Prepare content with photo reference
+      const content = `[Photo: ${photoURL}] ${message}`;
+
+      // Send message using the messages service
+      await messagesService.sendMessage({
+        receiverId: userId,
+        content: content,
+      });
+
+      // Reset message input and active item
+      setMessageText("");
+      setActiveMessageItem(null);
+
+      Alert.alert("Success", "Message sent successfully!");
+    } catch (error) {
+      console.error("Error sending message:", error);
+      Alert.alert("Error", "Failed to send message. Please try again.");
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  const renderFeedItem = ({ item }: { item: ExtendedFileDto }) => {
     const imageUrl = filesService.getFileUrl(item.path);
     const isIpfs = isIPFSImage(item.path);
+    const isFriendPhoto = item.userId && item.userName;
 
     return (
-      <View style={styles.feedItem}>
+      <View style={homeStyles.feedItem}>
         <View className="flex-1 bg-black w-full items-center justify-center">
-          <View style={styles.feedCameraContainer}>
+          <View style={homeStyles.feedCameraContainer}>
             <Image
               source={{ uri: imageUrl }}
               contentFit="cover"
               transition={500}
-              style={styles.feedImage}
+              style={homeStyles.feedImage}
               cachePolicy={isIpfs ? "memory" : "disk"}
             />
           </View>
+          {/* Friend name badge if it's a friend's photo */}
+          {isFriendPhoto && (
+            <View className="flex-row items-center py-2 px-3 rounded-3xl bg-custom-dark mt-4">
+              <Ionicons name="person" size={20} color="white" />
+              <Text className="font-bold text-lg ml-2 text-white">
+                {item.userName}
+              </Text>
+            </View>
+          )}
         </View>
+
+        {/* Message box for friend photos */}
+        {isFriendPhoto && (
+          <View style={homeStyles.messageBoxContainer} className="">
+            <>
+              <View
+                className="flex-row items-center bg-zinc-800 rounded-full px-4 py-2"
+              >
+                <TextInput
+                  className="flex-1 text-gray-300 text-base mr-2 font-bold p-2"
+                  placeholder="Send message..."
+                  placeholderTextColor="white"
+                  value={messageText}
+                  onChangeText={setMessageText}
+                  multiline
+                  maxLength={200}
+                />
+                <TouchableOpacity
+                  style={homeStyles.messageSendButton}
+                  onPress={() =>
+                    sendMessageAboutPhoto(item.userId, item.path, messageText)
+                  }
+                  disabled={sendingMessage || !messageText.trim()}
+                >
+                  {sendingMessage ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <Ionicons name="send" size={20} color="white" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          </View>
+        )}
 
         {/* Bottom controls */}
         <View className="flex-row w-full justify-between px-16 absolute bottom-16 items-center">
-          {/* History Button */}
+          {/* View details button */}
           <TouchableOpacity
-            // onPress={toggleFlash}
             className="items-center justify-center w-12 h-12"
+            // onPress={() => viewPhotoDetail(item)}
           >
-            <Ionicons name={"grid"} size={35} color="white" />
+            <Ionicons name="grid" size={35} color="white" />
           </TouchableOpacity>
 
-          {/* Capture button */}
-          <Pressable
-            // onPress={mode === "picture" ? takePicture : recordVideo}
-            style={styles.captureButton}
-          >
+          {/* Like button placeholder */}
+          <Pressable style={homeStyles.captureButton}>
             <View
               style={[
-                styles.captureButtonInner,
-                recording && { backgroundColor: "red" },
+                homeStyles.captureButtonInner,
+                { backgroundColor: "white" },
               ]}
             />
           </Pressable>
 
           {/* Share Button */}
-          <TouchableOpacity
-            // onPress={toggleFacing}
-            className="items-center justify-center w-12 h-12"
-          >
+          <TouchableOpacity className="items-center justify-center w-12 h-12">
             <Ionicons name="share-social" size={35} color="white" />
           </TouchableOpacity>
         </View>
@@ -608,17 +686,17 @@ export default function Home() {
         visible={feedModalVisible}
         onRequestClose={() => setFeedModalVisible(false)}
       >
-        <View style={styles.mainContainer}>
+        <View style={homeStyles.mainContainer}>
           {loadingPhotos ? (
-            <View style={styles.feedLoadingContainer}>
+            <View style={homeStyles.feedLoadingContainer}>
               <ActivityIndicator size="large" color="#FFB800" />
-              <Text style={styles.feedLoadingText}>Loading your photos...</Text>
+              <Text style={homeStyles.feedLoadingText}>Loading your photos...</Text>
             </View>
           ) : myPhotos.length === 0 ? (
-            <View style={styles.feedEmptyContainer}>
+            <View style={homeStyles.feedEmptyContainer}>
               <Ionicons name="images-outline" size={60} color="#999" />
-              <Text style={styles.feedEmptyText}>No photos yet</Text>
-              <Text style={styles.feedEmptySubtext}>
+              <Text style={homeStyles.feedEmptyText}>No photos yet</Text>
+              <Text style={homeStyles.feedEmptySubtext}>
                 Take your first photo to see it here
               </Text>
             </View>
@@ -677,7 +755,7 @@ export default function Home() {
   return (
     <>
       <StatusBar style="light" />
-      <View style={styles.mainContainer}>
+      <View style={homeStyles.mainContainer}>
         {uri ? renderPicture() : renderCamera()}
         {renderFeedModal()}
       </View>
@@ -685,136 +763,3 @@ export default function Home() {
   );
 }
 
-const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
-  cameraContainer: {
-    width: Dimensions.get("window").width * 0.975,
-    aspectRatio: 1,
-    overflow: "hidden",
-    borderRadius: 50,
-    marginBottom: 150,
-  },
-  feedCameraContainer: {
-    width: Dimensions.get("window").width * 0.975,
-    aspectRatio: 1,
-    overflow: "hidden",
-    borderRadius: 50,
-  },
-  camera: {
-    flex: 1,
-    width: "100%",
-    height: "100%",
-  },
-  captureButton: {
-    width: 75,
-    height: 75,
-    borderRadius: 50,
-    borderWidth: 5,
-    borderColor: "#FFB800",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent",
-  },
-  sendButton: {
-    width: 95,
-    height: 95,
-    borderRadius: 50,
-    borderWidth: 5,
-    borderColor: "#FFB800",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "gray",
-  },
-  captureButtonInner: {
-    width: 55,
-    height: 55,
-    borderRadius: 50,
-    backgroundColor: "white",
-  },
-  // Feed specific styles
-  feedItem: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
-    backgroundColor: "#000",
-  },
-  feedImage: {
-    width: "100%",
-    height: "100%",
-  },
-  feedInfo: {
-    position: "absolute",
-    bottom: 100,
-    left: 20,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    padding: 12,
-    borderRadius: 12,
-    maxWidth: "70%",
-  },
-  feedUsername: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  feedTimestamp: {
-    color: "#ccc",
-    fontSize: 14,
-  },
-  feedIpfsBadge: {
-    position: "absolute",
-    right: 15,
-    top: 60,
-    backgroundColor: "rgba(0, 102, 204, 0.8)",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  feedLoadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#000",
-  },
-  feedLoadingText: {
-    color: "white",
-    marginTop: 10,
-    fontSize: 16,
-  },
-  feedEmptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#000",
-  },
-  feedEmptyText: {
-    color: "white",
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 20,
-  },
-  feedEmptySubtext: {
-    color: "#ccc",
-    fontSize: 16,
-    marginTop: 8,
-    textAlign: "center",
-    paddingHorizontal: 40,
-  },
-  feedBackButton: {
-    position: "absolute",
-    top: 60,
-    left: 15,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    borderRadius: 20,
-  },
-  feedBackText: {
-    color: "white",
-    marginLeft: 8,
-    fontWeight: "600",
-  },
-});

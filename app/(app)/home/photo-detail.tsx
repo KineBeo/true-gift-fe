@@ -48,18 +48,29 @@ export default function PhotoDetail() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log("📋 PhotoDetail - Received params:", params);
     if (params.photo) {
       try {
         const photoData = JSON.parse(params.photo as string) as FileDto;
+        console.log("✅ PhotoDetail - Successfully parsed photo data:", {
+          id: photoData.id,
+          path: photoData.path,
+          filename: photoData.filename,
+          mimetype: photoData.mimetype,
+          createdAt: photoData.createdAt,
+        });
         setPhoto(photoData);
       } catch (e) {
+        console.error("❌ PhotoDetail - Error parsing photo data:", e);
         setError('Failed to parse photo data');
-        console.error('Error parsing photo data:', e);
       }
+    } else {
+      console.warn("⚠️ PhotoDetail - No photo param found in navigation params");
     }
   }, [params.photo]);
 
   if (error) {
+    console.log("🚫 PhotoDetail - Rendering error state:", error);
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>{error}</Text>
@@ -74,6 +85,7 @@ export default function PhotoDetail() {
   }
 
   if (!photo) {
+    console.log("⏳ PhotoDetail - Rendering loading state");
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.loadingText}>Loading photo...</Text>
@@ -83,6 +95,14 @@ export default function PhotoDetail() {
 
   const imageUrl = filesService.getFileUrl(photo.path);
   const isIpfs = isIPFSImage(photo.path);
+  
+  console.log("🖼️ PhotoDetail - Rendering photo:", {
+    id: photo.id,
+    path: photo.path,
+    resolvedUrl: imageUrl,
+    isIpfs: isIpfs,
+    dimensions: { width: width * 0.9, height: width * 0.9 }
+  });
   
   // Format date nicely
   const formattedDate = photo.createdAt 
@@ -107,9 +127,11 @@ export default function PhotoDetail() {
       // Create a shareable link to the Pinata gateway
       const shareUrl = `https://lavender-useful-yak-720.mypinata.cloud/ipfs/${cid}`;
       
+      console.log("🔗 PhotoDetail - Opening IPFS URL in browser:", shareUrl);
+      
       // Open the URL
       Linking.openURL(shareUrl).catch((err) => {
-        console.error('Error opening URL:', err);
+        console.error('❌ Error opening URL:', err);
       });
     }
   };
@@ -124,8 +146,19 @@ export default function PhotoDetail() {
           style={[styles.image, { width: width * 0.9, height: width * 0.9 }]}
           contentFit="contain"
           cachePolicy={isIpfs ? "memory-disk" : "memory"}
+          onLoad={() => {
+            console.log("✅ PhotoDetail - Image loaded successfully:", {
+              id: photo?.id,
+              url: imageUrl.substring(0, 30) + (imageUrl.length > 30 ? '...' : '')
+            });
+          }}
           onError={(error) => {
-            console.error('Error loading image:', error);
+            console.error('❌ PhotoDetail - Error loading image:', {
+              error,
+              id: photo?.id,
+              url: imageUrl,
+              isIpfs
+            });
             setError('Failed to load image');
           }}
         />

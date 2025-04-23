@@ -7,7 +7,7 @@ import { Image } from "expo-image"
 import messagesService, { ConversationItem } from '@/lib/services/messages'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { formatDistanceToNow } from 'date-fns'
-
+import { chatListStyles } from './styles/chatListStyles'
 export default function Chat() {
   const router = useRouter()
   const { user } = useAuthStore()
@@ -73,34 +73,34 @@ export default function Chat() {
     
     return (
       <TouchableOpacity 
-        style={styles.conversationItem}
+        style={chatListStyles.conversationItem}
         activeOpacity={0.7}
         onPress={() => router.push(`/message/${item.user?.id}`)}
       >
-        <View style={styles.avatarContainer}>
+        <View style={chatListStyles.avatarContainer}>
           {item.user?.photo ? (
             <Image
               source={{ uri: item.user?.photo || 'https://picsum.photos/200' }}
-              style={styles.avatar}
+              style={chatListStyles.avatar}
             />
           ) : (
-            <View style={styles.initialsContainer}>
-              <Text style={styles.initialsText}>{initials}</Text>
+            <View style={chatListStyles.initialsContainer}>
+              <Text style={chatListStyles.initialsText}>{initials}</Text>
             </View>
           )}
         </View>
         
-        <View style={styles.contentContainer}>
-          <View style={styles.headerRow}>
-            <Text style={styles.nameText}>{fullName}</Text>
-            <Text style={styles.timeText}>{formatMessageTime(item.lastMessage.createdAt)}</Text>
+        <View style={chatListStyles.contentContainer}>
+          <View style={chatListStyles.headerRow}>
+            <Text style={chatListStyles.nameText}>{fullName}</Text>
+            <Text style={chatListStyles.timeText}>{formatMessageTime(item.lastMessage.createdAt)}</Text>
           </View>
-          <Text style={styles.messageText} numberOfLines={1}>
+          <Text style={chatListStyles.messageText} numberOfLines={1}>
             {item.lastMessage.content || "No replies yet!"}
           </Text>
         </View>
         
-        <Ionicons name="chevron-forward" size={24} color="#666" style={styles.chevron} />
+        <Ionicons name="chevron-forward" size={24} color="#666" style={chatListStyles.chevron} />
       </TouchableOpacity>
     )
   }
@@ -108,27 +108,27 @@ export default function Chat() {
   const renderEmptyList = () => {
     if (loading) {
       return (
-        <View style={styles.emptyContainer}>
+        <View style={chatListStyles.emptyContainer}>
           <ActivityIndicator size="large" color="#FFC83C" />
-          <Text style={styles.emptyText}>Loading conversations...</Text>
+          <Text style={chatListStyles.emptyText}>Loading conversations...</Text>
         </View>
       )
     }
     
     if (error) {
       return (
-        <View style={styles.emptyContainer}>
+        <View style={chatListStyles.emptyContainer}>
           <Ionicons name="alert-circle-outline" size={40} color="#FFC83C" />
-          <Text style={styles.emptyText}>{error}</Text>
+          <Text style={chatListStyles.emptyText}>{error}</Text>
         </View>
       )
     }
     
     return (
-      <View style={styles.emptyContainer}>
+      <View style={chatListStyles.emptyContainer}>
         <Ionicons name="chatbubble-outline" size={40} color="#FFC83C" />
-        <Text style={styles.emptyText}>No messages yet</Text>
-        <Text style={styles.emptySubtext}>
+        <Text style={chatListStyles.emptyText}>No messages yet</Text>
+        <Text style={chatListStyles.emptySubtext}>
           Your conversations with friends will appear here
         </Text>
       </View>
@@ -136,14 +136,14 @@ export default function Chat() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={chatListStyles.container}>
       <StatusBar style="light" />
-      <View style={styles.headerContainer}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+      <View style={chatListStyles.headerContainer}>
+        <TouchableOpacity onPress={() => router.back()} style={chatListStyles.backButton}>
           <Ionicons name="chevron-back" size={28} color="white" />
         </TouchableOpacity>
         <Text className="text-white font-extrabold text-2xl">Messages</Text>
-        <View style={styles.headerRight} />
+        <View style={chatListStyles.headerRight} />
       </View>
 
       <FlatList
@@ -151,8 +151,8 @@ export default function Chat() {
         renderItem={renderItem}
         keyExtractor={item => item.user?.id?.toString() || item.lastMessage.id}
         contentContainerStyle={[
-          styles.listContent,
-          conversations.length === 0 && styles.emptyListContent
+          chatListStyles.listContent,
+          conversations.length === 0 && chatListStyles.emptyListContent
         ]}
         ListEmptyComponent={renderEmptyList}
         refreshControl={
@@ -168,110 +168,3 @@ export default function Chat() {
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  headerContainer: {
-    paddingTop: 15,
-    paddingBottom: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-  },
-  headerRight: {
-    width: 40,
-  },
-  listContent: {
-    paddingVertical: 8,
-  },
-  emptyListContent: {
-    flex: 1,
-  },
-  conversationItem: {
-    flexDirection: 'row',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  avatarContainer: {
-    marginRight: 12,
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#333',
-  },
-  initialsContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#333',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  initialsText: {
-    color: '#999',
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  contentContainer: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  nameText: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  timeText: {
-    fontSize: 14,
-    color: '#888',
-  },
-  messageText: {
-    fontSize: 15,
-    color: '#999',
-  },
-  chevron: {
-    marginLeft: 5,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#999',
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-});
