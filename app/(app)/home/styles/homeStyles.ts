@@ -10,7 +10,7 @@ export const homeStyles = StyleSheet.create({
         aspectRatio: 1,
         overflow: "hidden",
         borderRadius: 50,
-        marginBottom: 150,
+        marginBottom: 100,
       },
       feedCameraContainer: {
         width: Dimensions.get("window").width * 0.975,
@@ -176,5 +176,12 @@ export const homeStyles = StyleSheet.create({
       cancelButtonText: {
         color: "#FFB800",
         fontWeight: "600",
+      },
+      challengeCameraContainer: {
+        width: Dimensions.get("window").width * 0.975,
+        aspectRatio: 1,
+        overflow: "hidden",
+        borderRadius: 50,
+        marginBottom: 50,
       },
 })

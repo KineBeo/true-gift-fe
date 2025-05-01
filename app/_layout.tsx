@@ -44,6 +44,8 @@ export default function RootLayout() {
     
     <Stack.Screen name="(app)" options={{ 
     }} />
+
+    <Stack.Screen name="api-test" options={{ title: 'API Test', headerShown: true }} />
   </Stack>
   );
 }

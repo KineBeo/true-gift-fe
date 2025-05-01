@@ -177,7 +177,8 @@ export default function Setting() {
             {renderSettingItem(
               <Feather name="slash" size={24} color="white" />,
               "Delete Account",
-              <FontAwesome name="chevron-right" size={18} color="#9CA3AF" />
+              <FontAwesome name="chevron-right" size={18} color="#9CA3AF" />,
+              () => router.push("/_sitemap")
             )}
             {renderSettingItem(
               <Feather name="log-out" size={24} color="#FF3B30" />,

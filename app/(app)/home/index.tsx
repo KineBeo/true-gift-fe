@@ -21,6 +21,7 @@ import {
   Platform,
   Linking,
   TextInput,
+  SafeAreaView,
 } from "react-native";
 import { Image } from "expo-image";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -34,6 +35,8 @@ import filesService, { FileDto } from "@/lib/services/files";
 import * as FileSystem from "expo-file-system";
 import messagesService from "@/lib/services/messages";
 import { homeStyles } from "./styles/homeStyles";
+import ChallengeCard from "@/components/ui/challenge/ChallengeCard";
+import challengeService, { TodayChallengeDto } from "@/lib/services/challenge";
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const GRID_SPACING = 4;
 const NUM_COLUMNS = 3;
@@ -92,20 +95,6 @@ const isIPFSImage = (path: string): boolean => {
 
   return false;
 };
-
-// Format date for display
-const formatDate = (dateString: string) => {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
 interface ExtendedFileDto extends FileDto {
   userId?: number | null;
   userName?: string | null;
@@ -131,6 +120,10 @@ export default function Home() {
   const [selectedPhoto, setSelectedPhoto] = useState<FileDto | null>(null);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [feedModalVisible, setFeedModalVisible] = useState(false);
+  const [challengeModalVisible, setChallengeModalVisible] = useState(false);
+  const [challenge, setChallenge] = useState<TodayChallengeDto | null>(null);
+  const [loadingChallenge, setLoadingChallenge] = useState(false);
+  const [isSubmittingChallenge, setIsSubmittingChallenge] = useState(false);
   const router = useRouter();
   const [messageText, setMessageText] = useState<string>("");
   const [sendingMessage, setSendingMessage] = useState(false);
@@ -152,16 +145,33 @@ export default function Home() {
   }, [myPhotos]);
 
   useEffect(() => {
-    fetchAllPhotos();
-  }, []);
-
-  const viewPhotoDetail = (photo: FileDto) => {
-    setSelectedPhoto(photo);
-    router.push({
-      pathname: "/home/photo-detail",
-      params: { photo: JSON.stringify(photo) },
-    });
+    // Fetch photos and challenge initially and when user changes
+    if (user?.id) {
+      fetchAllPhotos();
+      fetchTodayChallenge();
+    }
+  }, [user?.id]);
+  
+  // Fetch today's challenge (only once on initial load)
+  const fetchTodayChallenge = async () => {
+    try {
+      setLoadingChallenge(true);
+      console.log("[Challenge] Initial fetch of today's challenge");
+      const todayChallenge = await challengeService.getTodayChallenge();
+      
+      // Compare with existing challenge if we have one
+      if (challenge && challenge.id !== todayChallenge.id) {
+        console.log("[Challenge] Received different challenge from server:", todayChallenge.id);
+      }
+      
+      setChallenge(todayChallenge);
+    } catch (error) {
+      console.error("Error fetching today's challenge:", error);
+    } finally {
+      setLoadingChallenge(false);
+    }
   };
+
   const fetchMyPhotos = async (): Promise<ExtendedFileDto[]> => {
     try {
       const response = await filesService.getMyPhotos();
@@ -197,14 +207,16 @@ export default function Home() {
       const friendsPhotos = await fetchFriendsPhotos();
       const allPhotos = [...myPhotos, ...friendsPhotos];
       allPhotos.sort((a: ExtendedFileDto, b: ExtendedFileDto) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA; // Descending order (newest first)
+        return (
+          new Date(b.createdAt || 0).getTime() -
+          new Date(a.createdAt || 0).getTime()
+        );
       });
       setMyPhotos(allPhotos);
       return allPhotos;
     } catch (error) {
       console.error("Error fetching all photos:", error);
+      Alert.alert("Error", "Failed to load photos");
       return [];
     } finally {
       setLoadingPhotos(false);
@@ -221,6 +233,38 @@ export default function Home() {
     // fetchMyPhotos();
     fetchAllPhotos();
     setFeedModalVisible(true);
+  };
+
+  const showChallenge = async () => {
+    try {
+      // If we don't have a challenge yet or it's expired, fetch it
+      if (!challenge || new Date(challenge.expiresAt) < new Date()) {
+        setLoadingChallenge(true);
+        if (user?.id) {
+          console.log("[Challenge] Fetching challenge in showChallenge");
+          const todayChallenge = await challengeService.getTodayChallenge();
+          setChallenge(todayChallenge);
+        }
+        setLoadingChallenge(false);
+      } else {
+        console.log("[Challenge] Using cached challenge in showChallenge:", challenge.id);
+        
+        // If challenge is completed, re-fetch to ensure we have latest state
+        // This helps when user completes a challenge from another device/session
+        if (challenge.isCompleted) {
+          fetchTodayChallenge().catch(err => {
+            console.error("Error refreshing completed challenge:", err);
+          });
+        }
+      }
+      
+      // Show the modal
+      setChallengeModalVisible(true);
+    } catch (error) {
+      console.error("Error fetching today's challenge:", error);
+      Alert.alert("Error", "Failed to load today's challenge");
+      setLoadingChallenge(false);
+    }
   };
 
   if (!user) {
@@ -254,21 +298,6 @@ export default function Home() {
   const takePicture = async () => {
     const photo = await ref.current?.takePictureAsync();
     setUri(photo?.uri ?? null);
-  };
-
-  const recordVideo = async () => {
-    if (recording) {
-      setRecording(false);
-      ref.current?.stopRecording();
-      return;
-    }
-    setRecording(true);
-    const video = await ref.current?.recordAsync();
-    // console.log({ video });
-  };
-
-  const toggleMode = () => {
-    setMode((prev) => (prev === "picture" ? "video" : "picture"));
   };
 
   const toggleFacing = () => {
@@ -464,6 +493,7 @@ export default function Home() {
   const renderCamera = () => {
     return (
       <View className="flex-1 bg-black w-full items-center justify-center">
+        <ChallengeCard challenge={challenge} loading={loadingChallenge} />
         <View style={homeStyles.cameraContainer}>
           <CameraView
             style={homeStyles.camera}
@@ -502,7 +532,7 @@ export default function Home() {
         </View>
 
         {/* Bottom controls */}
-        <View className="flex-row w-full justify-between px-16 absolute bottom-52 items-center">
+        <View className="flex-row w-full justify-between px-16 absolute bottom-36 items-center">
           <Pressable
             onPress={toggleFlash}
             className="items-center justify-center w-12 h-12"
@@ -516,7 +546,7 @@ export default function Home() {
 
           {/* Capture button */}
           <Pressable
-            onPress={mode === "picture" ? takePicture : recordVideo}
+            onPress={takePicture}
             style={homeStyles.captureButton}
           >
             <View
@@ -535,14 +565,22 @@ export default function Home() {
           </Pressable>
         </View>
 
-        {/* History button */}
-        <View className="absolute bottom-32 w-full flex-row justify-center space-x-4">
+        {/* History and Challenge buttons */}
+        <View className="absolute bottom-16 w-full flex-row justify-center items-center space-x-4">
           <TouchableOpacity
-            className="flex-row items-center bg-zinc-800/80 py-2 px-6 rounded-full"
+            className="flex-1 flex-row items-center justify-center bg-zinc-800/80 py-4 rounded-[30px] gap-1 mx-4"
             onPress={showHistory}
           >
             <Feather name="image" size={22} color="white" />
-            <Text className="text-white ml-2 font-bold text-2xl">History</Text>
+            <Text className="text-white font-bold text-[18px]">History</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            className="flex-1 flex-row items-center justify-center bg-zinc-800/80 py-4 rounded-[30px] gap-1 mx-4"
+            onPress={showChallenge}
+          >
+            <Feather name="award" size={22} color="white" />
+            <Text className="text-white font-bold text-[18px]">Challenge</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -619,9 +657,7 @@ export default function Home() {
         {isFriendPhoto && (
           <View style={homeStyles.messageBoxContainer} className="">
             <>
-              <View
-                className="flex-row items-center bg-zinc-800 rounded-full px-4 py-2"
-              >
+              <View className="flex-row items-center bg-zinc-800 rounded-full px-4 py-2">
                 <TextInput
                   className="flex-1 text-gray-300 text-base mr-2 font-bold p-2"
                   placeholder="Send message..."
@@ -690,7 +726,9 @@ export default function Home() {
           {loadingPhotos ? (
             <View style={homeStyles.feedLoadingContainer}>
               <ActivityIndicator size="large" color="#FFB800" />
-              <Text style={homeStyles.feedLoadingText}>Loading your photos...</Text>
+              <Text style={homeStyles.feedLoadingText}>
+                Loading your photos...
+              </Text>
             </View>
           ) : myPhotos.length === 0 ? (
             <View style={homeStyles.feedEmptyContainer}>
@@ -752,14 +790,257 @@ export default function Home() {
     );
   };
 
+  const submitChallenge = async () => {
+    if (!uri) {
+      Alert.alert("Error", "Please take a photo first");
+      return;
+    }
+
+    setIsSubmittingChallenge(true);
+
+    try {
+      const response = await challengeService.submitChallenge(
+        uri,
+        challenge?.id
+      );
+
+      if (response.success) {
+        // Update the local challenge with completed status
+        if (challenge) {
+          setChallenge({
+            ...challenge,
+            isCompleted: true
+          });
+        }
+        
+        setTimeout(() => {
+          Alert.alert(
+            "Challenge Completed!",
+            `Score: ${Math.round(response.score)}%. ${response.message}`,
+            [
+              {
+                text: "See Streak",
+                onPress: () => {
+                  setChallengeModalVisible(false);
+                  setUri(null);
+                  router.push("/challenges");
+                },
+              },
+              {
+                text: "Close",
+                onPress: () => {
+                  setChallengeModalVisible(false);
+                  setUri(null);
+                },
+              },
+            ]
+          );
+        }, 500);
+      } else {
+        Alert.alert(
+          "Challenge Failed",
+          `Score: ${Math.round(response.score)}%. ${response.message}`,
+          [
+            {
+              text: "Try Again",
+              onPress: () => setUri(null),
+            },
+            {
+              text: "Close",
+              onPress: () => {
+                setChallengeModalVisible(false);
+                setUri(null);
+              },
+              style: "cancel",
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error("Error submitting challenge:", error);
+      Alert.alert("Error", "Failed to submit challenge. Please try again.", [
+        {
+          text: "OK",
+          onPress: () => setUri(null),
+        },
+      ]);
+    } finally {
+      setIsSubmittingChallenge(false);
+    }
+  };
+
+  const renderChallengeModal = () => {
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={challengeModalVisible}
+        onRequestClose={() => setChallengeModalVisible(false)}
+      >
+        <View style={homeStyles.mainContainer}>
+          {loadingChallenge ? (
+            <View style={homeStyles.feedLoadingContainer}>
+              <ActivityIndicator size="large" color="#FFB800" />
+              <Text style={homeStyles.feedLoadingText}>
+                Loading today's challenge...
+              </Text>
+            </View>
+          ) : !challenge ? (
+            <View style={homeStyles.feedEmptyContainer}>
+              <Ionicons name="trophy-outline" size={60} color="#999" />
+              <Text style={homeStyles.feedEmptyText}>
+                No challenge available
+              </Text>
+              <Text style={homeStyles.feedEmptySubtext}>
+                Check back later for today's challenge
+              </Text>
+            </View>
+          ) : (
+            <>
+              {!uri ? (
+                <View className="flex-1 bg-black w-full items-center justify-center">
+                  {/* Challenge Info Banner */}
+                  <View className="absolute top-36 w-full">
+                    <View className="bg-zinc-800/90 p-5 rounded-[30px]">
+                      <View className="flex-row justify-between items-center mb-2">
+                        <Text className="text-white font-bold text-xl">
+                          {challenge.title || "Today's Challenge"}
+                        </Text>
+                        <View className="flex-row items-center">
+                          <Ionicons name="flame" size={20} color="#FFB800" />
+                          <Text className="text-white ml-1 font-bold">
+                            {challenge.currentStreak || 0}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text className="text-gray-300">
+                        {challenge.description}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Camera View */}
+                  <View style={homeStyles.challengeCameraContainer}>
+                    <CameraView
+                      style={homeStyles.camera}
+                      ref={ref}
+                      facing={facing}
+                      enableTorch={flash}
+                    />
+                  </View>
+
+                  {/* Bottom controls */}
+                  <View className="flex-row w-full justify-between px-16 absolute bottom-36 items-center">
+                    <Pressable
+                      onPress={toggleFlash}
+                      className="items-center justify-center w-12 h-12"
+                    >
+                      <Ionicons
+                        name={flash ? "flash" : "flash-off"}
+                        size={35}
+                        color="#ffb800"
+                      />
+                    </Pressable>
+
+                    {/* Capture button */}
+                    <Pressable
+                      onPress={takePicture}
+                      style={homeStyles.captureButton}
+                    >
+                      <View style={homeStyles.captureButtonInner} />
+                    </Pressable>
+
+                    <Pressable
+                      onPress={toggleFacing}
+                      className="items-center justify-center w-12 h-12"
+                    >
+                      <Ionicons name="sync" size={35} color="white" />
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <View className="flex-1 bg-black w-full items-center justify-center">
+                  {/* Challenge Info Banner */}
+                  <View className="absolute top-36 w-full">
+                    <View className="bg-zinc-800/90 p-5 rounded-[30px]">
+                      <Text className="text-white font-bold text-xl">
+                        {challenge.title || "Today's Challenge"}
+                      </Text>
+                      <Text className="text-gray-300">
+                        {challenge.description}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Image Preview */}
+                  <View style={homeStyles.challengeCameraContainer}>
+                    <Image
+                      source={{ uri }}
+                      contentFit="contain"
+                      style={{
+                        width: Dimensions.get("window").width * 0.975,
+                        aspectRatio: 1,
+                      }}
+                    />
+                  </View>
+
+                  {/* Submit or Retake Buttons */}
+                  <View className="absolute bottom-36 w-full flex-row justify-center gap-10">
+                    <TouchableOpacity
+                      className="flex-row items-center bg-zinc-800/80 p-5 rounded-[40px] gap-1"
+                      onPress={() => setUri(null)}
+                    >
+                      <Ionicons name="refresh" size={22} color="white" />
+                      <Text className="text-white font-extrabold text-2xl">
+                        Retake
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      className="flex-row items-center bg-amber-400 p-5 rounded-[40px] gap-1"
+                      onPress={submitChallenge}
+                      disabled={isSubmittingChallenge}
+                    >
+                      {isSubmittingChallenge ? (
+                        <ActivityIndicator size="small" color="black" />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-sharp" size={22} color="black" />
+                          <Text className="text-black font-extrabold text-2xl">
+                            Submit
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* Close button */}
+              <View className="absolute top-16 left-0 mt-4">
+                <Pressable
+                  className="bg-zinc-800/80 p-3 rounded-full flex-row items-center"
+                  onPress={() => {
+                    setChallengeModalVisible(false);
+                    setUri(null);
+                  }}
+                >
+                  <Ionicons name="close" size={24} color="white" />
+                </Pressable>
+              </View>
+            </>
+          )}
+        </View>
+      </Modal>
+    );
+  };
+
   return (
-    <>
+    <View className="flex-1 bg-black">
       <StatusBar style="light" />
-      <View style={homeStyles.mainContainer}>
-        {uri ? renderPicture() : renderCamera()}
-        {renderFeedModal()}
-      </View>
-    </>
+      {uri ? renderPicture() : permission?.granted ? renderCamera() : null}
+      {renderFeedModal()}
+      {renderChallengeModal()}
+    </View>
   );
 }
-

@@ -245,7 +245,8 @@ const filesService = {
     if (!path) return '';
     
     // Cache of gateway URLs - dedicated gateway for TrueGift
-    const PINATA_GATEWAY = 'https://lavender-useful-yak-720.mypinata.cloud/ipfs/';
+    // move to env variable later
+    const PINATA_GATEWAY = 'https://scarlet-definite-starfish-115.mypinata.cloud/ipfs/';
     const PINATA_FALLBACK = 'https://gateway.pinata.cloud/ipfs/';
     
     // Log for debugging
