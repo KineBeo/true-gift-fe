@@ -140,6 +140,7 @@ export const homeStyles = StyleSheet.create({
         left: 20,
         right: 20,
         alignItems: "center",
+        transitionProperty: "all",
       },
       messageButton: {
         flexDirection: "row",

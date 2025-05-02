@@ -19,6 +19,7 @@
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
+    "@tamagui/config": "^1.126.4",
     "axios": "^1.8.4",
     "date-fns": "^4.1.0",
     "expo": "^53.0.5",
@@ -48,6 +49,7 @@
     "react-native-web": "^0.20.0",
     "react-native-webview": "13.13.5",
     "tailwindcss": "^3.4.17",
+    "tamagui": "^1.126.4",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
