@@ -412,7 +412,7 @@ export default function Home() {
         {/* Take a picture */}
         <View style={homeStyles.cameraContainer}>
           <Image
-            source={{ uri }}
+            source={{ uri: uri || undefined }}
             contentFit="contain"
             style={{
               width: Dimensions.get("window").width * 0.975,
@@ -552,7 +552,6 @@ export default function Home() {
             <View
               style={[
                 homeStyles.captureButtonInner,
-                recording && { backgroundColor: "red" },
               ]}
             />
           </Pressable>
