@@ -25,8 +25,7 @@ export default function HomeLayout() {
             options={{
               headerShown: false,
               title: "Friends",
-              presentation: "modal",
-              animation: "slide_from_bottom",
+              presentation: "modal",            
             }}
           />
         </Stack>

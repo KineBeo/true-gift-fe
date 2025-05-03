@@ -93,7 +93,7 @@ const PicturePreview: React.FC<PicturePreviewProps> = ({
           {sending ? (
             <ActivityIndicator size="large" color="white" />
           ) : (
-            <Ionicons name="paper-plane-outline" size={40} color="white" />
+            <Ionicons name="paper-plane-outline" size={35} color="white" />
           )}
         </Pressable>
 

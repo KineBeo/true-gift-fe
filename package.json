@@ -19,6 +19,7 @@
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
+    "@tamagui/animations-react-native": "^1.126.4",
     "@tamagui/config": "^1.126.4",
     "@tamagui/sheet": "^1.126.4",
     "axios": "^1.8.4",

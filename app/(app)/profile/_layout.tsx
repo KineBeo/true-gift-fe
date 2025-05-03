@@ -27,7 +27,6 @@ export default function ProfileLayout() {
           headerShown: false,
           title: "Settings",
           presentation: "modal",
-          animation: "slide_from_bottom",
         }}
       />
       
@@ -37,7 +36,6 @@ export default function ProfileLayout() {
           headerShown: false,
           title: "Friends",
           presentation: "modal",
-          animation: "slide_from_bottom",
         }}
       />
     </Stack>
