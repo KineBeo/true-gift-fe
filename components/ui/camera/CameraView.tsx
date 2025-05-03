@@ -1,20 +1,17 @@
 import React from "react";
-import {
-  View,
-  Text,
-  Pressable,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, Pressable, TouchableOpacity } from "react-native";
 import {
   CameraView as ExpoCameraView,
   CameraType,
-  CameraMode
+  CameraMode,
 } from "expo-camera";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Feather from "@expo/vector-icons/Feather";
 import { useRouter } from "expo-router";
 import { TodayChallengeDto } from "@/lib/services/challenge";
 import ChallengeCard from "@/components/ui/challenge/ChallengeCard";
+import IconButton from "../common/IconButton";
+import IconOnlyButton from "../common/IconOnlyButton";
 
 interface CameraViewProps {
   cameraRef: React.RefObject<ExpoCameraView | null>;
@@ -62,29 +59,39 @@ const CameraViewComponent: React.FC<CameraViewProps> = ({
 
       {/* Friend count indicator */}
       <View className="absolute top-16 w-full flex-row justify-between px-4 m-4">
-        <TouchableOpacity
+        {/* <TouchableOpacity
           className="bg-zinc-800/80 p-4 rounded-full"
           onPress={() => router.push("/profile")}
         >
           <Ionicons name="person" size={22} color="white" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
+        <IconOnlyButton
+          iconName="person"
+          iconSize={25}
+          iconColor="white"
+          routePath="/profile"
+        />
 
-        <TouchableOpacity
-          onPress={() => router.push("/(app)/home/friends")}
-          className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center"
-        >
-          <Ionicons name="people" size={22} color="white" />
-          <Text className="text-white ml-2 font-extrabold text-xl">
-            1 Friends
-          </Text>
-        </TouchableOpacity>
+        <IconButton
+          iconName="people"
+          iconSize={25}
+          iconColor="white"
+          label="1 Friends"
+          routePath="/(app)/home/friends"
+        />
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           onPress={() => router.push("/message")}
           className="bg-zinc-800/80 p-4 rounded-full"
         >
           <Ionicons name="chatbubble" size={22} color="white" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
+        <IconOnlyButton
+          iconName="chatbubble"
+          iconSize={25}
+          iconColor="white"
+          routePath="/message"
+        />
       </View>
 
       {/* Bottom controls */}
@@ -101,15 +108,8 @@ const CameraViewComponent: React.FC<CameraViewProps> = ({
         </Pressable>
 
         {/* Capture button */}
-        <Pressable
-          onPress={takePicture}
-          style={homeStyles.captureButton}
-        >
-          <View
-            style={[
-              homeStyles.captureButtonInner,
-            ]}
-          />
+        <Pressable onPress={takePicture} style={homeStyles.captureButton}>
+          <View style={[homeStyles.captureButtonInner]} />
         </Pressable>
 
         <Pressable
@@ -122,24 +122,38 @@ const CameraViewComponent: React.FC<CameraViewProps> = ({
 
       {/* History and Challenge buttons */}
       <View className="absolute bottom-16 w-full flex-row justify-center items-center space-x-4">
-        <TouchableOpacity
+        {/* <TouchableOpacity
           className="flex-1 flex-row items-center justify-center bg-zinc-800/80 py-4 rounded-[30px] gap-1 mx-4"
           onPress={showHistory}
         >
           <Feather name="image" size={22} color="white" />
           <Text className="text-white font-bold text-[18px]">History</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
+        <IconButton
+          iconName="image"
+          label="History"
+          labelStyles="text-white font-bold text-[18px]"
+          className="flex-1 justify-center gap-1 mx-4 py-4"
+          onPress={showHistory}
+        />
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           className="flex-1 flex-row items-center justify-center bg-zinc-800/80 py-4 rounded-[30px] gap-1 mx-4"
           onPress={showChallenge}
         >
           <Feather name="award" size={22} color="white" />
           <Text className="text-white font-bold text-[18px]">Challenge</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
+        <IconButton
+          iconName="trophy-sharp"
+          label="Challenge"
+          labelStyles="text-white font-bold text-[18px]"
+          className="flex-1 justify-center gap-1 mx-4 py-4"
+          onPress={showChallenge}
+        />
       </View>
     </View>
   );
 };
 
-export default CameraViewComponent; 
+export default CameraViewComponent;

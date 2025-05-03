@@ -11,6 +11,8 @@ import { Image } from "expo-image";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Entypo from "@expo/vector-icons/Entypo";
 import { useRouter } from "expo-router";
+import IconOnlyButton from "../common/IconOnlyButton";
+import IconButton from "../common/IconButton";
 
 interface PicturePreviewProps {
   uri: string | null;
@@ -51,29 +53,27 @@ const PicturePreview: React.FC<PicturePreviewProps> = ({
 
       {/* Friend count indicator */}
       <View className="absolute top-16 w-full flex-row justify-between px-4 m-4">
-        <Pressable
-          className="bg-zinc-800/80 p-4 rounded-full"
-          onPress={() => router.push("/profile")}
-        >
-          <Ionicons name="person" size={22} color="white" />
-        </Pressable>
+        <IconOnlyButton
+          iconName="person"
+          iconSize={25}
+          iconColor="white"
+          routePath="/profile"
+        />
+  
+        <IconButton
+          iconName="people"
+          iconSize={25}
+          iconColor="white"
+          label="Send to..."
+          routePath="/(app)/home/friends"
+        />
 
-        <Pressable
-          className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center"
-          onPress={selectFriend}
-        >
-          <Ionicons name="people" size={22} color="white" />
-          <Text className="text-white ml-2 font-extrabold text-xl">
-            Send to ...
-          </Text>
-        </Pressable>
-
-        <Pressable
-          className="bg-zinc-800/80 p-4 rounded-full"
+        <IconOnlyButton
+          iconName="download"
+          iconSize={25}
+          iconColor="white"
           onPress={downloadPhoto}
-        >
-          <Ionicons name="download-outline" size={24} color="white" />
-        </Pressable>
+        />
       </View>
 
       {/* Bottom Control */}
