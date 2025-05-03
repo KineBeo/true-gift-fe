@@ -21,6 +21,7 @@ import {
   Platform,
   Linking,
   TextInput,
+  SafeAreaView,
 } from "react-native";
 import { Image } from "expo-image";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -34,6 +35,13 @@ import filesService, { FileDto } from "@/lib/services/files";
 import * as FileSystem from "expo-file-system";
 import messagesService from "@/lib/services/messages";
 import { homeStyles } from "./styles/homeStyles";
+import ChallengeCard from "@/components/ui/challenge/ChallengeCard";
+import ChallengeModal from "@/components/ui/challenge/ChallengeModal";
+import challengeService, { TodayChallengeDto } from "@/lib/services/challenge";
+import CameraViewComponent from "@/components/ui/camera/CameraView";
+import PicturePreview from "@/components/ui/camera/PicturePreview";
+import FeedModal from "@/components/ui/feed/FeedModal";
+
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const GRID_SPACING = 4;
 const NUM_COLUMNS = 3;
@@ -93,19 +101,6 @@ const isIPFSImage = (path: string): boolean => {
   return false;
 };
 
-// Format date for display
-const formatDate = (dateString: string) => {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
 interface ExtendedFileDto extends FileDto {
   userId?: number | null;
   userName?: string | null;
@@ -131,6 +126,10 @@ export default function Home() {
   const [selectedPhoto, setSelectedPhoto] = useState<FileDto | null>(null);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [feedModalVisible, setFeedModalVisible] = useState(false);
+  const [challengeModalVisible, setChallengeModalVisible] = useState(false);
+  const [challenge, setChallenge] = useState<TodayChallengeDto | null>(null);
+  const [loadingChallenge, setLoadingChallenge] = useState(false);
+  const [isSubmittingChallenge, setIsSubmittingChallenge] = useState(false);
   const router = useRouter();
   const [messageText, setMessageText] = useState<string>("");
   const [sendingMessage, setSendingMessage] = useState(false);
@@ -152,16 +151,33 @@ export default function Home() {
   }, [myPhotos]);
 
   useEffect(() => {
-    fetchAllPhotos();
-  }, []);
-
-  const viewPhotoDetail = (photo: FileDto) => {
-    setSelectedPhoto(photo);
-    router.push({
-      pathname: "/home/photo-detail",
-      params: { photo: JSON.stringify(photo) },
-    });
+    // Fetch photos and challenge initially and when user changes
+    if (user?.id) {
+      fetchAllPhotos();
+      fetchTodayChallenge();
+    }
+  }, [user?.id]);
+  
+  // Fetch today's challenge (only once on initial load)
+  const fetchTodayChallenge = async () => {
+    try {
+      setLoadingChallenge(true);
+      console.log("[Challenge] Initial fetch of today's challenge");
+      const todayChallenge = await challengeService.getTodayChallenge();
+      
+      // Compare with existing challenge if we have one
+      if (challenge && challenge.id !== todayChallenge.id) {
+        console.log("[Challenge] Received different challenge from server:", todayChallenge.id);
+      }
+      
+      setChallenge(todayChallenge);
+    } catch (error) {
+      console.error("Error fetching today's challenge:", error);
+    } finally {
+      setLoadingChallenge(false);
+    }
   };
+
   const fetchMyPhotos = async (): Promise<ExtendedFileDto[]> => {
     try {
       const response = await filesService.getMyPhotos();
@@ -197,14 +213,16 @@ export default function Home() {
       const friendsPhotos = await fetchFriendsPhotos();
       const allPhotos = [...myPhotos, ...friendsPhotos];
       allPhotos.sort((a: ExtendedFileDto, b: ExtendedFileDto) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA; // Descending order (newest first)
+        return (
+          new Date(b.createdAt || 0).getTime() -
+          new Date(a.createdAt || 0).getTime()
+        );
       });
       setMyPhotos(allPhotos);
       return allPhotos;
     } catch (error) {
       console.error("Error fetching all photos:", error);
+      Alert.alert("Error", "Failed to load photos");
       return [];
     } finally {
       setLoadingPhotos(false);
@@ -221,6 +239,38 @@ export default function Home() {
     // fetchMyPhotos();
     fetchAllPhotos();
     setFeedModalVisible(true);
+  };
+
+  const showChallenge = async () => {
+    try {
+      // If we don't have a challenge yet or it's expired, fetch it
+      if (!challenge || new Date(challenge.expiresAt) < new Date()) {
+        setLoadingChallenge(true);
+        if (user?.id) {
+          console.log("[Challenge] Fetching challenge in showChallenge");
+          const todayChallenge = await challengeService.getTodayChallenge();
+          setChallenge(todayChallenge);
+        }
+        setLoadingChallenge(false);
+      } else {
+        console.log("[Challenge] Using cached challenge in showChallenge:", challenge.id);
+        
+        // If challenge is completed, re-fetch to ensure we have latest state
+        // This helps when user completes a challenge from another device/session
+        if (challenge.isCompleted) {
+          fetchTodayChallenge().catch(err => {
+            console.error("Error refreshing completed challenge:", err);
+          });
+        }
+      }
+      
+      // Show the modal
+      setChallengeModalVisible(true);
+    } catch (error) {
+      console.error("Error fetching today's challenge:", error);
+      Alert.alert("Error", "Failed to load today's challenge");
+      setLoadingChallenge(false);
+    }
   };
 
   if (!user) {
@@ -254,21 +304,6 @@ export default function Home() {
   const takePicture = async () => {
     const photo = await ref.current?.takePictureAsync();
     setUri(photo?.uri ?? null);
-  };
-
-  const recordVideo = async () => {
-    if (recording) {
-      setRecording(false);
-      ref.current?.stopRecording();
-      return;
-    }
-    setRecording(true);
-    const video = await ref.current?.recordAsync();
-    // console.log({ video });
-  };
-
-  const toggleMode = () => {
-    setMode((prev) => (prev === "picture" ? "video" : "picture"));
   };
 
   const toggleFacing = () => {
@@ -377,178 +412,6 @@ export default function Home() {
     Alert.alert("Photo Saved", "Photo has been saved to your device");
   };
 
-  const renderPicture = () => {
-    return (
-      <View className="flex-1 bg-black w-full items-center justify-center">
-        {/* Take a picture */}
-        <View style={homeStyles.cameraContainer}>
-          <Image
-            source={{ uri }}
-            contentFit="contain"
-            style={{
-              width: Dimensions.get("window").width * 0.975,
-              aspectRatio: 1,
-            }}
-          />
-        </View>
-
-        {/* Friend count indicator */}
-        <View className="absolute top-16 w-full flex-row justify-between px-4 m-4">
-          <Pressable
-            className="bg-zinc-800/80 p-4 rounded-full"
-            onPress={() => router.push("/profile")}
-          >
-            <Ionicons name="person" size={22} color="white" />
-          </Pressable>
-
-          <Pressable
-            className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center"
-            onPress={selectFriend}
-          >
-            <Ionicons name="people" size={22} color="white" />
-            <Text className="text-white ml-2 font-extrabold text-xl">
-              Send to ...
-            </Text>
-          </Pressable>
-
-          <Pressable
-            className="bg-zinc-800/80 p-4 rounded-full"
-            onPress={downloadPhoto}
-          >
-            <Ionicons name="download-outline" size={24} color="white" />
-          </Pressable>
-        </View>
-
-        {/* Bottom Control */}
-        <View className="flex-row w-full justify-between px-16 absolute bottom-52 items-center">
-          <Pressable
-            onPress={() => setUri(null)}
-            className="items-center justify-center w-12 h-12"
-          >
-            <Entypo name={"cross"} size={40} color="white" />
-          </Pressable>
-
-          <Pressable
-            onPress={sendPicture}
-            disabled={sending}
-            style={homeStyles.sendButton}
-          >
-            {sending ? (
-              <ActivityIndicator size="large" color="white" />
-            ) : (
-              <Ionicons name="paper-plane-outline" size={40} color="white" />
-            )}
-          </Pressable>
-
-          <Pressable className="items-center justify-center w-12 h-12">
-            <Ionicons name="sparkles-outline" size={32} color="white" />
-          </Pressable>
-        </View>
-
-        {/* Send to friends */}
-        <View className="absolute bottom-32 w-full items-center">
-          <Pressable
-            className="flex-row items-center bg-zinc-800/80 py-2 px-6 rounded-full"
-            onPress={selectFriend}
-          >
-            <Feather name="image" size={22} color="white" />
-            <Text className="text-white ml-2 font-bold text-2xl">
-              {selectedFriend ? "Friend Selected" : "Select Friend"}
-            </Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  };
-
-  const renderCamera = () => {
-    return (
-      <View className="flex-1 bg-black w-full items-center justify-center">
-        <View style={homeStyles.cameraContainer}>
-          <CameraView
-            style={homeStyles.camera}
-            ref={ref}
-            mode={mode}
-            facing={facing}
-            enableTorch={flash}
-          />
-        </View>
-
-        {/* Friend count indicator */}
-        <View className="absolute top-16 w-full flex-row justify-between px-4 m-4">
-          <TouchableOpacity
-            className="bg-zinc-800/80 p-4 rounded-full"
-            onPress={() => router.push("/profile")}
-          >
-            <Ionicons name="person" size={22} color="white" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => router.push("/(app)/home/friends")}
-            className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center"
-          >
-            <Ionicons name="people" size={22} color="white" />
-            <Text className="text-white ml-2 font-extrabold text-xl">
-              1 Friends
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => router.push("/message")}
-            className="bg-zinc-800/80 p-4 rounded-full"
-          >
-            <Ionicons name="chatbubble" size={22} color="white" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Bottom controls */}
-        <View className="flex-row w-full justify-between px-16 absolute bottom-52 items-center">
-          <Pressable
-            onPress={toggleFlash}
-            className="items-center justify-center w-12 h-12"
-          >
-            <Ionicons
-              name={flash ? "flash" : "flash-off"}
-              size={35}
-              color="#ffb800"
-            />
-          </Pressable>
-
-          {/* Capture button */}
-          <Pressable
-            onPress={mode === "picture" ? takePicture : recordVideo}
-            style={homeStyles.captureButton}
-          >
-            <View
-              style={[
-                homeStyles.captureButtonInner,
-                recording && { backgroundColor: "red" },
-              ]}
-            />
-          </Pressable>
-
-          <Pressable
-            onPress={toggleFacing}
-            className="items-center justify-center w-12 h-12"
-          >
-            <Ionicons name="sync" size={35} color="white" />
-          </Pressable>
-        </View>
-
-        {/* History button */}
-        <View className="absolute bottom-32 w-full flex-row justify-center space-x-4">
-          <TouchableOpacity
-            className="flex-row items-center bg-zinc-800/80 py-2 px-6 rounded-full"
-            onPress={showHistory}
-          >
-            <Feather name="image" size={22} color="white" />
-            <Text className="text-white ml-2 font-bold text-2xl">History</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
   const sendMessageAboutPhoto = async (
     userId: number | null | undefined,
     photoURL: string,
@@ -587,179 +450,133 @@ export default function Home() {
     }
   };
 
-  const renderFeedItem = ({ item }: { item: ExtendedFileDto }) => {
-    const imageUrl = filesService.getFileUrl(item.path);
-    const isIpfs = isIPFSImage(item.path);
-    const isFriendPhoto = item.userId && item.userName;
+  const submitChallenge = async (challengePhotoUri: string) => {
+    setIsSubmittingChallenge(true);
 
-    return (
-      <View style={homeStyles.feedItem}>
-        <View className="flex-1 bg-black w-full items-center justify-center">
-          <View style={homeStyles.feedCameraContainer}>
-            <Image
-              source={{ uri: imageUrl }}
-              contentFit="cover"
-              transition={500}
-              style={homeStyles.feedImage}
-              cachePolicy={isIpfs ? "memory" : "disk"}
-            />
-          </View>
-          {/* Friend name badge if it's a friend's photo */}
-          {isFriendPhoto && (
-            <View className="flex-row items-center py-2 px-3 rounded-3xl bg-custom-dark mt-4">
-              <Ionicons name="person" size={20} color="white" />
-              <Text className="font-bold text-lg ml-2 text-white">
-                {item.userName}
-              </Text>
-            </View>
-          )}
-        </View>
+    try {
+      const response = await challengeService.submitChallenge(
+        challengePhotoUri,
+        challenge?.id
+      );
 
-        {/* Message box for friend photos */}
-        {isFriendPhoto && (
-          <View style={homeStyles.messageBoxContainer} className="">
-            <>
-              <View
-                className="flex-row items-center bg-zinc-800 rounded-full px-4 py-2"
-              >
-                <TextInput
-                  className="flex-1 text-gray-300 text-base mr-2 font-bold p-2"
-                  placeholder="Send message..."
-                  placeholderTextColor="white"
-                  value={messageText}
-                  onChangeText={setMessageText}
-                  multiline
-                  maxLength={200}
-                />
-                <TouchableOpacity
-                  style={homeStyles.messageSendButton}
-                  onPress={() =>
-                    sendMessageAboutPhoto(item.userId, item.path, messageText)
-                  }
-                  disabled={sendingMessage || !messageText.trim()}
-                >
-                  {sendingMessage ? (
-                    <ActivityIndicator size="small" color="white" />
-                  ) : (
-                    <Ionicons name="send" size={20} color="white" />
-                  )}
-                </TouchableOpacity>
-              </View>
-            </>
-          </View>
-        )}
-
-        {/* Bottom controls */}
-        <View className="flex-row w-full justify-between px-16 absolute bottom-16 items-center">
-          {/* View details button */}
-          <TouchableOpacity
-            className="items-center justify-center w-12 h-12"
-            // onPress={() => viewPhotoDetail(item)}
-          >
-            <Ionicons name="grid" size={35} color="white" />
-          </TouchableOpacity>
-
-          {/* Like button placeholder */}
-          <Pressable style={homeStyles.captureButton}>
-            <View
-              style={[
-                homeStyles.captureButtonInner,
-                { backgroundColor: "white" },
-              ]}
-            />
-          </Pressable>
-
-          {/* Share Button */}
-          <TouchableOpacity className="items-center justify-center w-12 h-12">
-            <Ionicons name="share-social" size={35} color="white" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
-  const renderFeedModal = () => {
-    return (
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={feedModalVisible}
-        onRequestClose={() => setFeedModalVisible(false)}
-      >
-        <View style={homeStyles.mainContainer}>
-          {loadingPhotos ? (
-            <View style={homeStyles.feedLoadingContainer}>
-              <ActivityIndicator size="large" color="#FFB800" />
-              <Text style={homeStyles.feedLoadingText}>Loading your photos...</Text>
-            </View>
-          ) : myPhotos.length === 0 ? (
-            <View style={homeStyles.feedEmptyContainer}>
-              <Ionicons name="images-outline" size={60} color="#999" />
-              <Text style={homeStyles.feedEmptyText}>No photos yet</Text>
-              <Text style={homeStyles.feedEmptySubtext}>
-                Take your first photo to see it here
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={myPhotos}
-              keyExtractor={(item) => item.id}
-              renderItem={renderFeedItem}
-              pagingEnabled
-              showsVerticalScrollIndicator={false}
-              snapToInterval={SCREEN_HEIGHT}
-              snapToAlignment="start"
-              decelerationRate="fast"
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefreshPhotos}
-                  tintColor="#FFB800"
-                  colors={["#FFB800"]}
-                />
-              }
-            />
-          )}
-
-          {/* Feed control buttons */}
-          <View className="absolute top-16 w-full flex-row justify-between px-8 mt-4">
-            {/* <Pressable
-              className="bg-zinc-800/80 p-4 rounded-full"
-              onPress={() => router.push("/profile")}
-            >
-              <Ionicons name="person" size={22} color="white" />
-            </Pressable> */}
-
-            <Pressable
-              className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center"
-              onPress={() => setFeedModalVisible(false)}
-            >
-              <Ionicons name="camera" size={22} color="white" />
-              <Text className="text-white ml-2 font-extrabold text-xl">
-                Camera
-              </Text>
-            </Pressable>
-
-            {/* <Pressable
-              className="bg-zinc-800/80 p-4 rounded-full"
-              onPress={() => router.push("/message")}
-            >
-              <Ionicons name="chatbubble" size={22} color="white" />
-            </Pressable> */}
-          </View>
-        </View>
-      </Modal>
-    );
+      if (response.success) {
+        // Update the local challenge with completed status
+        if (challenge) {
+          setChallenge({
+            ...challenge,
+            isCompleted: true
+          });
+        }
+        
+        setTimeout(() => {
+          Alert.alert(
+            "Challenge Completed!",
+            `Score: ${Math.round(response.score)}%. ${response.message}`,
+            [
+              {
+                text: "See Streak",
+                onPress: () => {
+                  setChallengeModalVisible(false);
+                  router.push("/challenges");
+                },
+              },
+              {
+                text: "Close",
+                onPress: () => {
+                  setChallengeModalVisible(false);
+                },
+              },
+            ]
+          );
+        }, 500);
+      } else {
+        Alert.alert(
+          "Challenge Failed",
+          `Score: ${Math.round(response.score)}%. ${response.message}`,
+          [
+            {
+              text: "Try Again",
+              onPress: () => {},
+            },
+            {
+              text: "Close",
+              onPress: () => {
+                setChallengeModalVisible(false);
+              },
+              style: "cancel",
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error("Error submitting challenge:", error);
+      Alert.alert("Error", "Failed to submit challenge. Please try again.", [
+        {
+          text: "OK",
+        },
+      ]);
+    } finally {
+      setIsSubmittingChallenge(false);
+    }
   };
 
   return (
-    <>
+    <View className="flex-1 bg-black">
       <StatusBar style="light" />
-      <View style={homeStyles.mainContainer}>
-        {uri ? renderPicture() : renderCamera()}
-        {renderFeedModal()}
-      </View>
-    </>
+      
+      {/* Main Content - Either Picture Preview or Camera View */}
+      {uri ? (
+        <PicturePreview
+          uri={uri}
+          homeStyles={homeStyles}
+          sending={sending}
+          selectedFriend={selectedFriend}
+          sendPicture={sendPicture}
+          selectFriend={selectFriend}
+          downloadPhoto={downloadPhoto}
+          setUri={setUri}
+        />
+      ) : (
+        permission?.granted && (
+          <CameraViewComponent
+            cameraRef={ref}
+            mode={mode}
+            facing={facing}
+            flash={flash}
+            challenge={challenge}
+            loadingChallenge={loadingChallenge}
+            homeStyles={homeStyles}
+            takePicture={takePicture}
+            toggleFacing={toggleFacing}
+            toggleFlash={toggleFlash}
+            showHistory={showHistory}
+            showChallenge={showChallenge}
+          />
+        )
+      )}
+      
+      {/* Feed Modal */}
+      <FeedModal
+        visible={feedModalVisible}
+        setVisible={setFeedModalVisible}
+        myPhotos={myPhotos}
+        loadingPhotos={loadingPhotos}
+        refreshing={refreshing}
+        onRefreshPhotos={onRefreshPhotos}
+        homeStyles={homeStyles}
+        isIPFSImage={isIPFSImage}
+        sendMessageAboutPhoto={sendMessageAboutPhoto}
+      />
+      
+      {/* Challenge Modal */}
+      <ChallengeModal
+        visible={challengeModalVisible}
+        setVisible={setChallengeModalVisible}
+        challenge={challenge}
+        loadingChallenge={loadingChallenge}
+        submitChallenge={submitChallenge}
+        isSubmittingChallenge={isSubmittingChallenge}
+      />
+    </View>
   );
 }
-
