@@ -225,7 +225,11 @@ const FeedModal: React.FC<FeedModalProps> = ({
 
                 {/* Bottom controls - Static */}
                 <View className="flex-row w-full justify-between px-16 absolute bottom-16 items-center">
-                  <TouchableOpacity className="items-center justify-center w-12 h-12">
+                  <TouchableOpacity className="items-center justify-center w-12 h-12"
+                  onPress={() => {
+                    setVisible(false);
+                    router.push("/home/image-history");
+                  }}>
                     <Ionicons name="grid" size={35} color="white" />
                   </TouchableOpacity>
 

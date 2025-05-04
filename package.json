@@ -21,6 +21,7 @@
     "@react-navigation/native": "^7.0.14",
     "@tamagui/animations-react-native": "^1.126.4",
     "@tamagui/config": "^1.126.4",
+    "@tamagui/portal": "^1.126.5",
     "@tamagui/sheet": "^1.126.4",
     "axios": "^1.8.4",
     "date-fns": "^4.1.0",
@@ -66,5 +67,6 @@
     "react-test-renderer": "^19.0.0",
     "typescript": "^5.3.3"
   },
-  "private": true
+  "private": true,
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
