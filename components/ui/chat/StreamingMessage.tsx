@@ -94,7 +94,7 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
     
     // If too many items in queue, process more aggressively
     if (queueRef.current.length > 300) {
-      console.log(`[StreamingMessage] Queue too large (${queueRef.current.length}), optimizing...`);
+      // console.log(`[StreamingMessage] Queue too large (${queueRef.current.length}), optimizing...`);
       const combinedChunks = [];
       const chunkSize = 40; // Larger chunks when backed up
       
@@ -157,14 +157,14 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
         
         // Log significant updates
         if (newContent.length > 10) {
-          console.log(`[StreamingMessage] Adding ${newContent.length} new characters to animation queue`);
+          // console.log(`[StreamingMessage] Adding ${newContent.length} new characters to animation queue`);
         }
         
         addToQueue(newContent);
         startAnimation();
       } else if (content.length < contentRef.current.length) {
         // Content was reset/replaced entirely
-        console.log(`[StreamingMessage] Content was reset, displaying immediately: ${content.length} chars`);
+        // console.log(`[StreamingMessage] Content was reset, displaying immediately: ${content.length} chars`);
         setDisplayText(content);
         queueRef.current = [];
         setIsAnimating(false);
@@ -196,7 +196,7 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
   // If generation stops, display the entire content immediately
   useEffect(() => {
     if (!isGenerating && content.length > displayText.length && content !== 'Typing...') {
-      console.log(`[StreamingMessage] Generation stopped, showing full content: ${content.length} chars`);
+      // console.log(`[StreamingMessage] Generation stopped, showing full content: ${content.length} chars`);
       setDisplayText(content);
       queueRef.current = [];
       setIsAnimating(false);

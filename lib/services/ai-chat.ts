@@ -1,5 +1,5 @@
 import { apiService } from './api';
-import { API_URL } from '../config/environment';
+import { API_CONFIG } from '../config/environment';
 import { useAuthStore } from '../stores/auth-store';
 
 export interface AIMessage {
@@ -32,12 +32,9 @@ export interface ChatSession {
   error?: string;
 }
 
-// Update this to point to your AI chat microservice
-// In development, this would typically be http://localhost:8080
-const AI_SERVICE_URL = 'http://localhost:9000';
-
 class AIChatService {
-  private readonly API_ENDPOINT = '/api/chat';
+  private readonly API_ENDPOINT = API_CONFIG.ENDPOINTS.AI.CHAT;
+  private readonly SERVICE_URL = API_CONFIG.AI_SERVICE_URL;
   
   /**
    * Sends a message to the AI model and receives a completion
@@ -54,7 +51,7 @@ class AIChatService {
     try {
       // For streaming responses, we'll implement a polling approach that's more compatible with React Native
       if (options.stream && onProgress) {
-        console.log(`[AIChatService] Using manual streaming mode for React Native compatibility`);
+        // console.log(`[AIChatService] Using manual streaming mode for React Native compatibility`);
        
         // Immediately show empty response to avoid delay
         onProgress('', false);
@@ -71,7 +68,7 @@ class AIChatService {
         const responseCompletePromise = new Promise<string>(async (resolve, reject) => {
           try {
             // Start with fetch request
-            const response = await fetch(`${AI_SERVICE_URL}${this.API_ENDPOINT}`, {
+            const response = await fetch(`${this.SERVICE_URL}${this.API_ENDPOINT}`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -81,7 +78,7 @@ class AIChatService {
               signal,
             });
 
-            console.log(`[AIChatService] Response status: ${response.status}, content type: ${response.headers.get('Content-Type')}`);
+            // console.log(`[AIChatService] Response status: ${response.status}, content type: ${response.headers.get('Content-Type')}`);
 
             if (!response.ok) {
               const errorText = await response.text();
@@ -167,7 +164,7 @@ class AIChatService {
                   onProgress(currentText, false);
                   
                   if (fullText.length > lastRevealLength + 50) {
-                    console.log(`[AIChatService] Received ${fullText.length} total chars, revealed ${currentPosition}`);
+                    // console.log(`[AIChatService] Received ${fullText.length} total chars, revealed ${currentPosition}`);
                     lastRevealLength = fullText.length;
                   }
                 }
@@ -175,7 +172,7 @@ class AIChatService {
               
             } else {
               // Fallback to text() if response.body is not available
-              console.log(`[AIChatService] No stream body available, falling back to text()`);
+              // console.log(`[AIChatService] No stream body available, falling back to text()`);
               
               // Start a timer to simulate streaming for better UX
               let intervalId = setInterval(() => {
@@ -212,7 +209,7 @@ class AIChatService {
       
       // For non-streaming responses
       console.log(`[AIChatService] Using non-streaming mode`);
-      const response = await fetch(`${AI_SERVICE_URL}${this.API_ENDPOINT}`, {
+      const response = await fetch(`${this.SERVICE_URL}${this.API_ENDPOINT}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -240,11 +237,11 @@ class AIChatService {
       
       try {
         const data = await response.json();
-        console.log(`[AIChatService] Received non-streaming JSON response successfully`);
+        // console.log(`[AIChatService] Received non-streaming JSON response successfully`);
         return data.response;
       } catch (jsonError) {
         // If response is not JSON, try to get text
-        console.log(`[AIChatService] Response is not JSON, falling back to text`);
+        // console.log(`[AIChatService] Response is not JSON, falling back to text`);
         const text = await response.clone().text();
         return text;
       }
