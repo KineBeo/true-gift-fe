@@ -18,6 +18,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { homeStyles } from "../../../app/(app)/home/styles/homeStyles";
 import { TodayChallengeDto } from "@/lib/services/challenge";
+import IconOnlyButton from "../common/IconOnlyButton";
 
 interface ChallengeModalProps {
   visible: boolean;
@@ -72,6 +73,11 @@ const ChallengeModal: React.FC<ChallengeModalProps> = ({
     setVisible(false);
     setChallengeUri(null);
   };
+
+  const openChallenge = () => {
+    setVisible(false);
+    router.push('/(app)/challenges');
+  }
 
   return (
     <Modal
@@ -229,12 +235,21 @@ const ChallengeModal: React.FC<ChallengeModalProps> = ({
 
             {/* Close button */}
             <View className="absolute top-16 left-0 p-4">
-              <Pressable
-                className="bg-zinc-800/80 p-4 rounded-full flex-row items-center"
+              <IconOnlyButton
+                iconName="close"
+                iconSize={25}
+                iconColor="white"
                 onPress={closeModal}
-              >
-                <Ionicons name="close" size={22} color="white" />
-              </Pressable>
+              />
+            </View>
+
+            <View className="absolute top-16 right-0 p-4">
+              <IconOnlyButton
+                iconName="trophy-sharp"
+                iconSize={25}
+                iconColor="white"
+                onPress={openChallenge}
+              />
             </View>
           </>
         )}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -56,15 +56,30 @@ const FeedModal: React.FC<FeedModalProps> = ({
   const [activeMessageItem, setActiveMessageItem] = useState<string | null>(
     null
   );
+  const [currentIndex, setCurrentIndex] = useState(0);
   const SCREEN_HEIGHT = Dimensions.get("window").height;
 
-  const renderFeedItem = ({ item }: { item: ExtendedFileDto }) => {
+  // Get current item based on index
+  const currentItem = myPhotos.length > 0 ? myPhotos[currentIndex] : null;
+
+  // Reset messageText khi chuyển ảnh
+  useEffect(() => {
+    setMessageText("");
+  }, [currentIndex]);
+
+  const renderFeedItem = ({
+    item,
+    index,
+  }: {
+    item: ExtendedFileDto;
+    index: number;
+  }) => {
     const imageUrl = filesService.getFileUrl(item.path);
     const isIpfs = isIPFSImage(item.path);
     const isFriendPhoto = item.userId && item.userName;
 
     return (
-      <View style={homeStyles.feedItem}>
+      <View style={[homeStyles.feedItem, { height: SCREEN_HEIGHT }]}>
         <View className="flex-1 bg-black w-full items-center justify-center">
           <View style={homeStyles.feedCameraContainer}>
             <Image
@@ -85,70 +100,36 @@ const FeedModal: React.FC<FeedModalProps> = ({
             </View>
           )}
         </View>
-
-        {/* Message box for friend photos */}
-        {isFriendPhoto && (
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={homeStyles.messageBoxContainer}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 5 : 0}
-            className=""
-          >
-            <View className="flex-row items-center bg-zinc-800 rounded-full px-4 py-2">
-              <TextInput
-                className="flex-1 text-gray-300 text-xl mr-2 font-bold p-2"
-                placeholder="Send message..."
-                placeholderTextColor="white"
-                value={messageText}
-                onChangeText={setMessageText}
-                multiline
-                maxLength={200}
-              />
-              <TouchableOpacity
-                style={homeStyles.messageSendButton}
-                onPress={() =>
-                  sendMessageAboutPhoto(item.userId, item.path, messageText)
-                }
-                disabled={sendingMessage || !messageText.trim()}
-              >
-                {sendingMessage ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Ionicons name="send" size={20} color="white" />
-                )}
-              </TouchableOpacity>
-            </View>
-          </KeyboardAvoidingView>
-        )}
-
-        {/* Bottom controls */}
-        <View className="flex-row w-full justify-between px-16 absolute bottom-16 items-center">
-          {/* View details button */}
-          <TouchableOpacity
-            className="items-center justify-center w-12 h-12"
-            // onPress={() => viewPhotoDetail(item)}
-          >
-            <Ionicons name="grid" size={35} color="white" />
-          </TouchableOpacity>
-
-          {/* Like button placeholder */}
-          <Pressable style={homeStyles.captureButton}>
-            <View
-              style={[
-                homeStyles.captureButtonInner,
-                { backgroundColor: "white" },
-              ]}
-            />
-          </Pressable>
-
-          {/* Share Button */}
-          <TouchableOpacity className="items-center justify-center w-12 h-12">
-            <Ionicons name="share-social" size={35} color="white" />
-          </TouchableOpacity>
-        </View>
       </View>
     );
   };
+
+  // Handle scroll end to update current index
+  const handleViewableItemsChanged = ({ viewableItems }: any) => {
+    if (viewableItems.length > 0) {
+      setCurrentIndex(viewableItems[0].index);
+    }
+  };
+
+  // Get current item properties for static UI elements
+  const getCurrentItemDetails = () => {
+    if (!currentItem)
+      return { imageUrl: "", isIpfs: false, isFriendPhoto: false };
+
+    const imageUrl = filesService.getFileUrl(currentItem.path);
+    const isIpfs = isIPFSImage(currentItem.path);
+    const isFriendPhoto = currentItem.userId && currentItem.userName;
+
+    return { imageUrl, isIpfs, isFriendPhoto };
+  };
+
+  const { isFriendPhoto } = getCurrentItemDetails();
+
+  // Cải thiện viewabilityConfig để có độ chính xác cao hơn
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 80,
+    minimumViewTime: 100,
+  }).current;
 
   return (
     <Modal
@@ -174,29 +155,107 @@ const FeedModal: React.FC<FeedModalProps> = ({
             </Text>
           </View>
         ) : (
-          <FlatList
-            data={myPhotos}
-            keyExtractor={(item) => item.id}
-            renderItem={renderFeedItem}
-            pagingEnabled
-            showsVerticalScrollIndicator={false}
-            snapToInterval={SCREEN_HEIGHT}
-            snapToAlignment="start"
-            decelerationRate="fast"
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefreshPhotos}
-                tintColor="#FFB800"
-                colors={["#FFB800"]}
-              />
-            }
-          />
+          <>
+            {/* FlatList for scrollable content (only images and friend badge) */}
+            <FlatList
+              data={myPhotos}
+              keyExtractor={(item) => item.id}
+              renderItem={renderFeedItem}
+              pagingEnabled
+              showsVerticalScrollIndicator={false}
+              snapToInterval={SCREEN_HEIGHT}
+              snapToAlignment="start"
+              decelerationRate="fast"
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefreshPhotos}
+                  tintColor="#FFB800"
+                  colors={["#FFB800"]}
+                />
+              }
+              onViewableItemsChanged={handleViewableItemsChanged}
+              viewabilityConfig={viewabilityConfig}
+            />
+
+            {/* Static UI elements */}
+            {myPhotos.length > 0 && (
+              <>
+                {/* Message box - cập nhật placeholder */}
+                {isFriendPhoto && currentItem && (
+                  <KeyboardAvoidingView
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    style={[
+                      homeStyles.messageBoxContainer,
+                      { position: "absolute", bottom: 160, left: 0, right: 0 },
+                    ]}
+                    keyboardVerticalOffset={Platform.OS === "ios" ? 5 : 0}
+                  >
+                    <View className="flex-row items-center bg-zinc-800 rounded-full px-4 py-2 mx-4">
+                      <TextInput
+                        className="flex-1 text-gray-300 text-xl mr-2 font-bold p-2"
+                        placeholder={`Message to ${currentItem.userName}...`}
+                        placeholderTextColor="white"
+                        value={messageText}
+                        onChangeText={setMessageText}
+                        multiline
+                        maxLength={200}
+                      />
+                      <TouchableOpacity
+                        style={homeStyles.messageSendButton}
+                        onPress={() =>
+                          currentItem &&
+                          sendMessageAboutPhoto(
+                            currentItem.userId,
+                            currentItem.path,
+                            messageText
+                          )
+                        }
+                        disabled={sendingMessage || !messageText.trim()}
+                      >
+                        {sendingMessage ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
+                          <Ionicons name="send" size={20} color="white" />
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </KeyboardAvoidingView>
+                )}
+
+                {/* Bottom controls - Static */}
+                <View className="flex-row w-full justify-between px-16 absolute bottom-16 items-center">
+                  <TouchableOpacity className="items-center justify-center w-12 h-12"
+                  onPress={() => {
+                    setVisible(false);
+                    router.push("/home/image-history");
+                  }}>
+                    <Ionicons name="grid" size={35} color="white" />
+                  </TouchableOpacity>
+
+                  {/* Like button placeholder */}
+                  <Pressable
+                    style={homeStyles.captureButton}
+                    onPress={() => {
+                     setVisible(false);
+                    }}
+                  >
+                    <View style={[homeStyles.captureButtonInner]} />
+                  </Pressable>
+
+                  {/* Share Button */}
+                  <TouchableOpacity className="items-center justify-center w-12 h-12">
+                    <Ionicons name="share-social" size={35} color="white" />
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </>
         )}
 
-        {/* Feed control buttons */}
+        {/* Feed control buttons - Static */}
         <View className="absolute top-16 w-full flex-row justify-between px-8 mt-4">
-          <Pressable
+          {/* <Pressable
             className="bg-zinc-800/80 px-6 py-3 rounded-full flex-row items-center"
             onPress={() => setVisible(false)}
           >
@@ -204,7 +263,16 @@ const FeedModal: React.FC<FeedModalProps> = ({
             <Text className="text-white ml-2 font-extrabold text-xl">
               Camera
             </Text>
-          </Pressable>
+          </Pressable> */}
+
+          {/* Thêm số thứ tự ảnh */}
+          {myPhotos.length > 0 && (
+            <View className="bg-zinc-800/80 p-4 rounded-full">
+              <Text className="text-white font-bold">
+                {currentIndex + 1} / {myPhotos.length}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     </Modal>

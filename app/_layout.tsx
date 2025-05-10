@@ -2,9 +2,13 @@ import { Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "../lib/stores/auth-store";
 import { View, ActivityIndicator } from "react-native";
-import { createTamagui,TamaguiProvider } from 'tamagui'
+import { createTamagui, TamaguiProvider } from 'tamagui'
 import { defaultConfig } from '@tamagui/config/v4'
+import { PortalProvider } from '@tamagui/portal'
 import "./global.css";
+
+// Create the Tamagui config outside of component
+const config = createTamagui(defaultConfig);
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
@@ -34,29 +38,29 @@ export default function RootLayout() {
     );
   }
 
-  const config = createTamagui(defaultConfig);
-
   return (
     <TamaguiProvider config={config}>
-    <Stack
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Stack.Screen
-        name="welcome"
-        options={{
-          title: "Welcome",
-        }}
-      />
+      <PortalProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          <Stack.Screen
+            name="welcome"
+            options={{
+              title: "Welcome",
+            }}
+          />
 
-      <Stack.Screen name="(app)" options={{}} />
+          <Stack.Screen name="(app)" options={{}} />
 
-      <Stack.Screen
-        name="api-test"
-        options={{ title: "API Test", headerShown: true }}
-      />
-    </Stack>
+          <Stack.Screen
+            name="api-test"
+            options={{ title: "API Test", headerShown: true }}
+          />
+        </Stack>
+      </PortalProvider>
     </TamaguiProvider>
   );
 }

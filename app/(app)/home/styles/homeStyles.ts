@@ -34,8 +34,8 @@ export const homeStyles = StyleSheet.create({
         backgroundColor: "transparent",
       },
       sendButton: {
-        width: 95,
-        height: 95,
+        width: 75,
+        height: 75,
         borderRadius: 50,
         borderWidth: 5,
         borderColor: "#FFB800",

@@ -1,7 +1,7 @@
 import { apiService } from './api';
 import * as FileSystem from 'expo-file-system';
 import { useAuthStore } from '@/lib/stores/auth-store';
-import { API_URL } from '@/lib/config/environment';
+import { API_CONFIG, API_URL } from '@/lib/config/environment';
 
 export interface FileDto {
   id: string;
@@ -246,7 +246,7 @@ const filesService = {
     
     // Cache of gateway URLs - dedicated gateway for TrueGift
     // move to env variable later
-    const PINATA_GATEWAY = 'https://scarlet-definite-starfish-115.mypinata.cloud/ipfs/';
+    const PINATA_GATEWAY = API_CONFIG.PINATA_GATEWAY;
     const PINATA_FALLBACK = 'https://gateway.pinata.cloud/ipfs/';
     
     // Log for debugging
