@@ -6,6 +6,7 @@ import { createTamagui, TamaguiProvider } from 'tamagui'
 import { defaultConfig } from '@tamagui/config/v4'
 import { PortalProvider } from '@tamagui/portal'
 import "./global.css";
+import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 
 // Create the Tamagui config outside of component
 const config = createTamagui(defaultConfig);
@@ -39,6 +40,7 @@ export default function RootLayout() {
   }
 
   return (
+    <GluestackUIProvider>
     <TamaguiProvider config={config}>
       <PortalProvider>
         <Stack
@@ -62,5 +64,6 @@ export default function RootLayout() {
         </Stack>
       </PortalProvider>
     </TamaguiProvider>
+    </GluestackUIProvider>
   );
 }

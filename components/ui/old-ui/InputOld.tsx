@@ -8,7 +8,7 @@ import {
   KeyboardTypeOptions,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { classNames } from '../../lib/utils/classNames';
+import { classNames } from '../../../lib/utils/classNames';
 
 interface InputProps extends TextInputProps {
   label?: string;
