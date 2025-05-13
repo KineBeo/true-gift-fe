@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ActivityIndicator, RefreshControl } from 'react-native'
-import React, { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useCallback, useRef, memo } from 'react'
 import { StatusBar } from 'expo-status-bar'
 import { useRouter } from 'expo-router'
 import Ionicons from "@expo/vector-icons/Ionicons"
@@ -9,13 +9,37 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import { formatDistanceToNow } from 'date-fns'
 import chatListStyles from './styles/chatListStyles'
 
+// Extend ConversationItem để thêm trạng thái typing
+interface EnhancedConversationItem extends ConversationItem {
+  isTyping?: boolean;
+}
+
+// Component hiển thị trạng thái kết nối
+const ConnectionStatus = memo(({ isConnected, isConnecting }: { isConnected: boolean, isConnecting: boolean }) => {
+  if (isConnected) return null;
+
+  return (
+    <View style={chatListStyles.connectionStatusContainer}>
+      <View style={[
+        chatListStyles.connectionStatusDot,
+        isConnecting ? chatListStyles.connectingDot : chatListStyles.disconnectedDot
+      ]} />
+      <Text style={chatListStyles.connectionStatusText}>
+        {isConnecting ? "Connecting..." : "No connection"}
+      </Text>
+    </View>
+  );
+});
+
 export default function Chat() {
   const router = useRouter()
-  const { user } = useAuthStore()
-  const [conversations, setConversations] = useState<ConversationItem[]>([])
+  const { user, token } = useAuthStore()
+  const [conversations, setConversations] = useState<EnhancedConversationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [socketConnected, setSocketConnected] = useState(false)
+  const [socketConnecting, setSocketConnecting] = useState(false)
   const isMounted = useRef(true)
   
   // Memoized fetch để tránh recreate function trong useEffect
@@ -103,7 +127,7 @@ export default function Chat() {
         
         if (otherUser) {
           // Tạo cuộc hội thoại mới và đặt ở đầu danh sách
-          const newConversation: ConversationItem = {
+          const newConversation: EnhancedConversationItem = {
             user: otherUser,
             lastMessage: {
               id: message.id,
@@ -137,7 +161,49 @@ export default function Chat() {
       )
     )
   }, [user?.id])
-  
+
+  // Xử lý khi trạng thái typing của người dùng khác thay đổi
+  const handleUserTyping = useCallback((status: { userId: number, isTyping: boolean }) => {
+    if (!user?.id) return
+
+    setConversations(prev => {
+      return prev.map(conv => {
+        if (conv.user && conv.user.id === status.userId) {
+          return { ...conv, isTyping: status.isTyping }
+        }
+        return conv
+      })
+    })
+  }, [user?.id])
+
+  // Effect xử lý trạng thái kết nối WebSocket
+  useEffect(() => {
+    const handleConnectionStatus = (status: boolean) => {
+      setSocketConnected(status);
+      setSocketConnecting(false);
+      
+      // Nếu kết nối được phục hồi, cập nhật dữ liệu
+      if (status && isMounted.current) {
+        fetchConversations(false);
+      }
+    };
+
+    const unsubscribe = messageSocketInstance.onConnectionStatus((status) => {
+      handleConnectionStatus(status);
+    });
+
+    // Check websocket connection status
+    if (!messageSocketInstance.isConnected()) {
+      setSocketConnecting(messageSocketInstance.isConnecting());
+    } else {
+      setSocketConnected(true);
+    }
+
+    return () => {
+      unsubscribe();
+    };
+  }, [fetchConversations]);
+
   // Effect để khởi tạo WebSocket và lắng nghe sự kiện
   useEffect(() => {
     isMounted.current = true
@@ -145,112 +211,118 @@ export default function Chat() {
     // Khởi tạo dữ liệu ban đầu
     fetchConversations()
     
-    // Kết nối WebSocket nếu có user
-    if (user?.id) {
-      messageSocketInstance.connect(Number(user.id))
+    // Kết nối WebSocket nếu có user và token
+    if (user?.id && token) {
+      // Đảm bảo kết nối WebSocket
+      messageSocketInstance.connect(Number(user.id), token)
       
       // Lắng nghe sự kiện tin nhắn mới
       const unsubscribeNewMessage = messageSocketInstance.onNewMessage(handleNewMessage)
       
       // Lắng nghe sự kiện đọc tin nhắn
       const unsubscribeMessagesRead = messageSocketInstance.onMessagesRead(handleMessagesRead)
+
+      // Lắng nghe sự kiện typing
+      const unsubscribeUserTyping = messageSocketInstance.onUserTyping(handleUserTyping)
+
+      // Lắng nghe sự kiện lỗi
+      const unsubscribeError = messageSocketInstance.onError((error) => {
+        console.error('WebSocket error:', error)
+      })
       
       // Cleanup function
       return () => {
         isMounted.current = false
         unsubscribeNewMessage()
         unsubscribeMessagesRead()
+        unsubscribeUserTyping()
+        unsubscribeError()
       }
     }
     
     return () => {
       isMounted.current = false
     }
-  }, [user?.id, fetchConversations, handleNewMessage, handleMessagesRead])
+  }, [user?.id, token, fetchConversations, handleNewMessage, handleMessagesRead, handleUserTyping])
 
-  const formatMessageTime = (dateString: string) => {
+  const formatLastActive = (dateString: string): string => {
     try {
-      // Format similar to the image: "4d", "6d", "20 Jan", etc.
-      const date = new Date(dateString)
-      const now = new Date()
-      const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-      
-      if (diffInDays < 30) {
-        return diffInDays === 0 ? 'Today' : `${diffInDays}d`
-      } else {
-        return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
-      }
-    } catch (err) {
-      return dateString
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true })
+    } catch (error) {
+      return ''
     }
   }
 
   const getInitials = (name: string) => {
-    if (!name) return 'CQ';
-    const nameParts = name.split(' ');
+    if (!name) return 'CQ'
+    const nameParts = name.split(' ')
     if (nameParts.length >= 2) {
-      return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+      return (nameParts[0][0] + nameParts[1][0]).toUpperCase()
     }
-    return nameParts[0].substring(0, 2).toUpperCase();
-  };
+    return nameParts[0].substring(0, 2).toUpperCase()
+  }
 
-  const renderItem = ({ item }: { item: ConversationItem }) => {
-    const fullName = item.user ? `${item.user.firstName} ${item.user.lastName}` : 'Unknown'
-    const initials = getInitials(fullName);
-    
+  const renderItem = ({ item }: { item: EnhancedConversationItem }) => {
+    const { user: chatUser, lastMessage, unreadCount = 0, isTyping } = item
+    const fullName = `${chatUser.firstName} ${chatUser.lastName}`
+
     return (
-      <TouchableOpacity 
-        style={[
-          chatListStyles.conversationItem, 
-          item.unreadCount > 0 && chatListStyles.unreadConversation
-        ]}
+      <TouchableOpacity
+        style={chatListStyles.conversationItem}
+        onPress={() => router.push(`/message/${chatUser.id}`)}
         activeOpacity={0.7}
-        onPress={() => router.push(`/message/${item.user?.id}`)}
       >
         <View style={chatListStyles.avatarContainer}>
-          {item.user?.photo ? (
+          {chatUser.photo ? (
             <Image
-              source={{ uri: item.user?.photo || 'https://picsum.photos/200' }}
+              source={{ uri: chatUser.photo }}
               style={chatListStyles.avatar}
-              transition={300}
-              cachePolicy="memory"
+              contentFit="cover"
+              transition={200}
             />
           ) : (
             <View style={chatListStyles.initialsContainer}>
-              <Text style={chatListStyles.initialsText}>{initials}</Text>
-            </View>
-          )}
-          {item.unreadCount > 0 && (
-            <View style={chatListStyles.unreadBadge}>
-              <Text style={chatListStyles.unreadBadgeText}>
-                {item.unreadCount > 9 ? '9+' : item.unreadCount}
-              </Text>
+              <Text style={chatListStyles.initialsText}>{getInitials(fullName)}</Text>
             </View>
           )}
         </View>
-        
-        <View style={chatListStyles.contentContainer}>
-          <View style={chatListStyles.headerRow}>
-            <Text style={[
-              chatListStyles.nameText,
-              item.unreadCount > 0 && chatListStyles.boldText
-            ]}>
+
+        <View style={chatListStyles.messageInfoContainer}>
+          <View style={chatListStyles.nameTimeContainer}>
+            <Text style={chatListStyles.nameText} numberOfLines={1}>
               {fullName}
             </Text>
-            <Text style={chatListStyles.timeText}>{formatMessageTime(item.lastMessage.createdAt)}</Text>
+            <Text style={chatListStyles.timeText}>
+              {formatLastActive(lastMessage.createdAt)}
+            </Text>
           </View>
-          <Text 
-            style={[
-              chatListStyles.messageText, 
-              item.unreadCount > 0 && chatListStyles.boldText
-            ]} 
-            numberOfLines={1}
-          >
-            {item.lastMessage.content || "No replies yet!"}
-          </Text>
+
+          <View style={chatListStyles.previewContainer}>
+            {isTyping ? (
+              <Text style={chatListStyles.typingText}>
+                typing...
+              </Text>
+            ) : (
+              <Text
+                style={[
+                  chatListStyles.previewText,
+                  unreadCount > 0 && chatListStyles.unreadPreviewText,
+                ]}
+                numberOfLines={1}
+              >
+                {lastMessage.content || "Photo"}
+              </Text>
+            )}
+
+            {unreadCount > 0 && (
+              <View style={chatListStyles.unreadBadge}>
+                <Text style={chatListStyles.unreadText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
-        
-        <Ionicons name="chevron-forward" size={24} color="#666" style={chatListStyles.chevron} />
       </TouchableOpacity>
     )
   }
@@ -264,47 +336,63 @@ export default function Chat() {
         </View>
       )
     }
-    
+
     if (error) {
       return (
         <View style={chatListStyles.emptyContainer}>
           <Ionicons name="alert-circle-outline" size={40} color="#FFC83C" />
           <Text style={chatListStyles.emptyText}>{error}</Text>
+          <TouchableOpacity
+            style={chatListStyles.retryButton}
+            onPress={() => fetchConversations()}
+          >
+            <Text style={chatListStyles.retryText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       )
     }
-    
+
     return (
       <View style={chatListStyles.emptyContainer}>
-        <Ionicons name="chatbubble-outline" size={40} color="#FFC83C" />
-        <Text style={chatListStyles.emptyText}>No messages yet</Text>
-        <Text style={chatListStyles.emptySubtext}>
-          Your conversations with friends will appear here
+        <Ionicons name="chatbubble-ellipses-outline" size={40} color="#FFC83C" />
+        <Text style={chatListStyles.emptyText}>No conversations yet</Text>
+        <Text style={chatListStyles.emptySubText}>
+          Start chatting with friends to connect!
         </Text>
       </View>
     )
   }
 
+  const onStartChat = () => {
+    // Navigate to user list or friend list to start a chat
+    router.push('/');
+  }
+
   return (
     <SafeAreaView style={chatListStyles.container}>
       <StatusBar style="light" />
+      
+      {/* Connection status indicator */}
+      <ConnectionStatus 
+        isConnected={socketConnected} 
+        isConnecting={socketConnecting} 
+      />
+      
       <View style={chatListStyles.headerContainer}>
-        <TouchableOpacity onPress={() => router.back()} style={chatListStyles.backButton}>
-          <Ionicons name="chevron-back" size={28} color="white" />
+        <Text style={chatListStyles.headerTitle}>Messages</Text>
+        <TouchableOpacity onPress={onStartChat}>
+          <Ionicons name="create-outline" size={24} color="#FFC83C" />
         </TouchableOpacity>
-        <Text className="text-white font-extrabold text-2xl">Messages</Text>
-        <View style={chatListStyles.headerRight} />
       </View>
 
       <FlatList
         data={conversations}
         renderItem={renderItem}
-        keyExtractor={item => item.user?.id?.toString() || item.lastMessage.id}
+        keyExtractor={(item) => `conversation-${item.user.id}`}
         contentContainerStyle={[
           chatListStyles.listContent,
-          conversations.length === 0 && chatListStyles.emptyListContent
+          conversations.length === 0 && { flex: 1 }
         ]}
-        ListEmptyComponent={renderEmptyList}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -313,11 +401,7 @@ export default function Chat() {
             colors={["#FFC83C"]}
           />
         }
-        showsVerticalScrollIndicator={false}
-        initialNumToRender={10}
-        maxToRenderPerBatch={10}
-        windowSize={10}
-        removeClippedSubviews={true}
+        ListEmptyComponent={renderEmptyList}
       />
     </SafeAreaView>
   )

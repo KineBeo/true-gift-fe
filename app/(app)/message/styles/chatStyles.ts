@@ -236,5 +236,35 @@ export const chatStyles = StyleSheet.create({
   reactionText: {
     fontSize: 12,
     color: 'white'
+  },
+  // Styles for connection status
+  connectionStatusContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#2C2C2E',
+    padding: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  connectionStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  connectingDot: {
+    backgroundColor: '#FFC83C',
+  },
+  disconnectedDot: {
+    backgroundColor: '#FF453A',
+  },
+  connectionStatusText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '500',
   }
 });

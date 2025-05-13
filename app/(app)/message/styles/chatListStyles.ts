@@ -64,7 +64,7 @@ export default StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 5,
       },
-      unreadBadgeText: {
+      unreadText: {
         color: '#000',
         fontSize: 12,
         fontWeight: '600',
@@ -82,19 +82,25 @@ export default StyleSheet.create({
         fontSize: 22,
         fontWeight: 'bold',
       },
-      contentContainer: {
+      messageInfoContainer: {
         flex: 1,
         marginRight: 10,
       },
-      headerRow: {
+      nameTimeContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginBottom: 4,
+      },
+      previewContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
       },
       nameText: {
         fontSize: 18,
         fontWeight: 'bold',
         color: 'white',
+        maxWidth: '80%',
       },
       boldText: {
         fontWeight: '700',
@@ -103,9 +109,19 @@ export default StyleSheet.create({
         fontSize: 14,
         color: '#888',
       },
-      messageText: {
+      previewText: {
         fontSize: 16,
+        color: '#888',
+        maxWidth: '85%',
+      },
+      unreadPreviewText: {
         color: 'white',
+        fontWeight: '600',
+      },
+      typingText: {
+        fontSize: 16,
+        color: '#FFC83C',
+        fontStyle: 'italic',
       },
       chevron: {
         marginLeft: 'auto',
@@ -119,14 +135,55 @@ export default StyleSheet.create({
       emptyText: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#222',
+        color: 'white',
         marginTop: 12,
         textAlign: 'center',
       },
-      emptySubtext: {
+      emptySubText: {
         fontSize: 14,
         color: '#888',
         marginTop: 8,
         textAlign: 'center',
       },
+      retryButton: {
+        marginTop: 16,
+        backgroundColor: '#FFC83C',
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 20,
+      },
+      retryText: {
+        color: '#000',
+        fontWeight: '600',
+      },
+      // Styles for connection status
+      connectionStatusContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#2C2C2E',
+        padding: 6,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10,
+      },
+      connectionStatusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginRight: 8,
+      },
+      connectingDot: {
+        backgroundColor: '#FFC83C',
+      },
+      disconnectedDot: {
+        backgroundColor: '#FF453A',
+      },
+      connectionStatusText: {
+        fontSize: 12,
+        color: 'white',
+        fontWeight: '500',
+      }
 })

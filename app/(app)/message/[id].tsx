@@ -13,6 +13,7 @@ import {
   RefreshControl,
   Alert,
   Dimensions,
+  ScrollView,
 } from "react-native";
 import React, { useState, useEffect, useCallback, useRef, memo } from "react";
 import { StatusBar } from "expo-status-bar";
@@ -124,10 +125,27 @@ const MessageItem = memo(({
     prevProps.isUserMessage === nextProps.isUserMessage;
 });
 
+// Component hiển thị trạng thái kết nối
+const ConnectionStatus = memo(({ isConnected, isConnecting }: { isConnected: boolean, isConnecting: boolean }) => {
+  if (isConnected) return null;
+
+  return (
+    <View style={chatStyles.connectionStatusContainer}>
+      <View style={[
+        chatStyles.connectionStatusDot,
+        isConnecting ? chatStyles.connectingDot : chatStyles.disconnectedDot
+      ]} />
+      <Text style={chatStyles.connectionStatusText}>
+        {isConnecting ? "Connecting..." : "No connection"}
+      </Text>
+    </View>
+  );
+});
+
 export default function ChatDetail() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
   const isMounted = useRef(true);
@@ -154,6 +172,37 @@ export default function ChatDetail() {
     avatar?: string;
   }>({ name: "Chat", avatar: undefined });
   const [isTyping, setIsTyping] = useState(false);
+  const [otherUserIsTyping, setOtherUserIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [socketConnecting, setSocketConnecting] = useState(false);
+
+  // Function to mark messages as read locally
+  const markAsReadLocally = useCallback(async () => {
+    if (!user?.id || receiverId <= 0) return;
+
+    try {
+      // Đánh dấu tin nhắn đã đọc trên server
+      await messageSocketInstance.markAsRead(receiverId);
+      
+      // Cập nhật UI
+      setMessages(prev => prev.map(msg => 
+        msg.senderId === receiverId ? { ...msg, isRead: true } : msg
+      ));
+    } catch (err) {
+      console.error('Error marking messages as read:', err);
+      // Fallback to REST API if WebSocket fails
+      try {
+        await messagesService.markAsRead(receiverId);
+        // Update locally
+        setMessages(prev => prev.map(msg => 
+          msg.senderId === receiverId ? { ...msg, isRead: true } : msg
+        ));
+      } catch (restErr) {
+        console.error('Failed to mark messages as read via REST API:', restErr);
+      }
+    }
+  }, [receiverId, user?.id]);
 
   // Add a function to process messages and extract photo URLs
   const processMessage = useCallback((
@@ -182,160 +231,203 @@ export default function ChatDetail() {
   const handleNewMessage = useCallback((message: MessageDto) => {
     if (!user?.id) return;
     
-    // Chỉ xử lý tin nhắn liên quan đến cuộc trò chuyện hiện tại
-    if (
-      (message.senderId === receiverId && message.receiverId === Number(user.id)) ||
-      (message.receiverId === receiverId && message.senderId === Number(user.id))
-    ) {
-      // Thêm tin nhắn mới vào danh sách
-      setMessages((prev) => {
-        // Kiểm tra nếu tin nhắn đã tồn tại
-        const messageExists = prev.some(msg => msg.id === message.id);
-        if (messageExists) return prev;
+    console.log("New message received via WebSocket:", message);
+    
+    // Process the message similar to the rest
+    const processedMessage = processMessage(message);
+    
+    // Add to messages array and scroll
+    setMessages((prev) => {
+      // Check if we already have this message (avoid duplicates)
+      const exists = prev.some(msg => msg.id === message.id);
+      if (exists) return prev;
+      
+      // Add new message at the end (we display oldest first)
+      return [...prev, processedMessage];
+    });
+    
+    // Mark as read if it's from the other user
+    if (message.senderId === receiverId) {
+      markAsReadLocally();
+    }
+    
+    // Scroll to the bottom to show the new message
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  }, [user?.id, receiverId, processMessage, markAsReadLocally]);
 
-        // Add new message to the end (in chronological order)
-        return [...prev, processMessage(message)];
+  // Xử lý khi người khác đang typing
+  const handleUserTyping = useCallback((status: { userId: number, isTyping: boolean }) => {
+    if (status.userId === receiverId) {
+      setOtherUserIsTyping(status.isTyping);
+    }
+  }, [receiverId]);
+
+  // Effect xử lý trạng thái kết nối WebSocket
+  useEffect(() => {
+    const handleConnectionStatus = (status: boolean) => {
+      setSocketConnected(status);
+      setSocketConnecting(false);
+    };
+
+    const unsubscribe = messageSocketInstance.onConnectionStatus((status) => {
+      handleConnectionStatus(status);
+    });
+
+    // Check websocket connection status
+    if (!messageSocketInstance.isConnected()) {
+      setSocketConnecting(messageSocketInstance.isConnecting());
+    }
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Setup WebSocket connection
+  useEffect(() => {
+    if (!user?.id || !token || receiverId <= 0) return;
+    
+    // Connect to WebSocket
+    messageSocketInstance.connect(Number(user.id), token);
+    
+    // Subscribe to events
+    const unsubscribeNewMessage = messageSocketInstance.onNewMessage(message => {
+      if (!user?.id) return;
+      
+      // Only handle messages related to this conversation
+      if (
+        (message.senderId === receiverId && message.receiverId === Number(user.id)) ||
+        (message.receiverId === receiverId && message.senderId === Number(user.id))
+      ) {
+        console.log("New message received via WebSocket:", message);
+        
+        // Process the message similar to the rest
+        const processedMessage = processMessage(message);
+        
+        // Add to messages array and scroll
+        setMessages((prev) => {
+          // Check if we already have this message (avoid duplicates)
+          const exists = prev.some(msg => msg.id === message.id);
+          if (exists) return prev;
+          
+          // Add new message at the end (we display oldest first)
+          return [...prev, processedMessage];
+        });
+        
+        // Mark as read if it's from the other user
+        if (message.senderId === receiverId) {
+          markAsReadLocally();
+        }
+        
+        // Scroll to the bottom to show the new message
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    });
+    
+    // Xử lý typing events
+    const unsubscribeTyping = messageSocketInstance.onUserTyping(status => {
+      handleUserTyping(status);
+    });
+
+    // Xử lý lỗi
+    const unsubscribeError = messageSocketInstance.onError(error => {
+      console.error('WebSocket error:', error);
+    });
+
+    // Xử lý khi có tin nhắn được đánh dấu đã đọc
+    const unsubscribeRead = messageSocketInstance.onMessagesRead(data => {
+      if (data.by === receiverId) {
+        setMessages(prev => prev.map(msg => 
+          msg.senderId === Number(user.id) ? { ...msg, isRead: true } : msg
+        ));
+      }
+    });
+
+    return () => {
+      unsubscribeNewMessage();
+      unsubscribeTyping();
+      unsubscribeError();
+      unsubscribeRead();
+    };
+  }, [user?.id, token, receiverId, handleUserTyping]);
+
+  // Fetch messages from the server
+  const fetchMessages = useCallback(async (showLoader = true) => {
+    if (!user?.id || receiverId <= 0) {
+      setLoading(false);
+      return;
+    }
+
+    if (showLoader) {
+      setLoading(true);
+    }
+    setError(null);
+
+    try {
+      // Fetch messages between current user and receiver
+      const response = await messagesService.getMessages({
+        receiverId: receiverId,
+        limit: 50,
       });
 
-      // Đánh dấu tin nhắn là đã đọc nếu người dùng là người nhận
-      if (message.receiverId === Number(user.id) && !message.isRead) {
-        markAsReadLocally(message.senderId);
-      }
-    }
-  }, [user?.id, receiverId, processMessage]);
-
-  // Đánh dấu tin nhắn đã đọc cục bộ và gửi lên server
-  const markAsReadLocally = useCallback((senderId: number) => {
-    if (!user?.id) return;
-
-    // Cập nhật UI trước
-    setMessages(prev => prev.map(msg => 
-      msg.senderId === senderId && msg.receiverId === Number(user.id) && !msg.isRead
-        ? { ...msg, isRead: true }
-        : msg
-    ));
-    
-    // Gửi yêu cầu đánh dấu đã đọc
-    try {
-      messageSocketInstance.markAsRead(senderId);
-    } catch (error) {
-      console.error('Error marking messages as read via socket:', error);
-      // Fallback to API if needed
-      messagesService.markAsRead(senderId).catch(err => 
-        console.error('Error marking messages as read:', err)
+      // Process and populate all messages 
+      // Reverse the order since backend now returns DESC (newest first)
+      // but we want to display oldest first in the UI
+      const processedMessages = response.data.map(processMessage).reverse();
+      
+      setMessages(processedMessages);
+      
+      // Mark messages as read if there are unread messages
+      const hasUnreadMessages = processedMessages.some(
+        msg => !msg.isRead && msg.senderId === receiverId
       );
-    }
-  }, [user?.id]);
-
-  // Modify fetchMessages to process each message and scroll to latest message
-  const fetchMessages = useCallback(
-    async (showLoader = true) => {
-      if (receiverId <= 0) {
-        setError("Invalid recipient");
-        setLoading(false);
-        return;
+      
+      if (hasUnreadMessages) {
+        markAsReadLocally();
       }
 
-      try {
-        if (showLoader && isMounted.current) setLoading(true);
-        setError(null);
-
-        const response = await messagesService.getMessages({
-          receiverId: receiverId,
-          limit: 50,
-        });
-
-        if (isMounted.current) {
-          if (response.data.length > 0) {
-            // Display messages in chronological order (oldest to newest)
-            const messagesInOrder = response.data;
+      // Fetch friend details if available
+      if (processedMessages.length > 0) {
+        const friendMessage = processedMessages.find(
+          msg => msg.senderId === receiverId || msg.receiverId === receiverId
+        );
+        
+        if (friendMessage) {
+          const friend = friendMessage.senderId === Number(user.id) 
+            ? friendMessage.receiver 
+            : friendMessage.sender;
             
-            // Process each message to extract photo URLs
-            const processedMessages = messagesInOrder.map(processMessage);
-            setMessages(processedMessages);
-
-            // Mark messages as read
-            const unreadMessages = messagesInOrder.filter(
-              msg => msg.senderId === receiverId && msg.receiverId === Number(user?.id) && !msg.isRead
-            );
-            
-            if (unreadMessages.length > 0) {
-              markAsReadLocally(receiverId);
-            }
-
-            // Extract friend details from first message
-            const firstMessage = response.data[0];
-            if (firstMessage && user) {
-              const otherUser =
-                firstMessage.senderId === Number(user.id)
-                  ? firstMessage.receiver
-                  : firstMessage.sender;
-
-              if (otherUser) {
-                setFriendDetails({
-                  name: `${otherUser.firstName} ${otherUser.lastName}`,
-                  avatar: otherUser.photo,
-                });
-              }
-            }
-          } else {
-            setMessages([]);
+          if (friend) {
+            setFriendDetails({
+              name: `${friend.firstName} ${friend.lastName}`,
+              avatar: friend.photo,
+            });
           }
         }
-      } catch (err) {
-        console.error("Error fetching messages:", err);
-        if (isMounted.current) {
-          setError("Unable to load messages. Pull down to retry.");
-        }
-      } finally {
-        if (isMounted.current) {
-          setLoading(false);
-          setRefreshing(false);
-        }
       }
-    },
-    [receiverId, user?.id, processMessage, markAsReadLocally]
-  );
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchMessages(false);
-  }, [fetchMessages]);
-
-  useEffect(() => {
-    isMounted.current = true;
-    fetchMessages();
-
-    // Connect to WebSocket
-    if (user?.id) {
-      messageSocketInstance.connect(Number(user.id));
-      
-      // Listen for new messages
-      const unsubscribeNewMessage = messageSocketInstance.onNewMessage(handleNewMessage);
-      
-      // Listen for read receipts
-      const unsubscribeMessagesRead = messageSocketInstance.onMessagesRead(data => {
-        if (data.by === receiverId) {
-          // Update read status of messages sent to this recipient
-          setMessages(prev => prev.map(msg => 
-            msg.senderId === Number(user.id) && msg.receiverId === receiverId 
-              ? { ...msg, isRead: true } 
-              : msg
-          ));
-        }
-      });
-      
-      return () => {
-        isMounted.current = false;
-        unsubscribeNewMessage();
-        unsubscribeMessagesRead();
-      };
+    } catch (err) {
+      console.error('Error fetching messages:', err);
+      setError('Could not load messages. Pull down to try again.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    
+  }, [user?.id, receiverId, processMessage, markAsReadLocally]);
+
+  // Load messages when component mounts
+  useEffect(() => {
+    if (user?.id && receiverId > 0) {
+      fetchMessages();
+    }
+
     return () => {
       isMounted.current = false;
     };
-  }, [fetchMessages, user?.id, handleNewMessage, receiverId]);
+  }, [fetchMessages, user?.id, token, receiverId, handleUserTyping, isTyping, markAsReadLocally]);
 
   const sendMessage = async () => {
     if (!inputMessage.trim() || sending || !user || receiverId <= 0) {
@@ -365,7 +457,10 @@ export default function ChatDetail() {
       updatedAt: new Date().toISOString(),
     };
 
+    console.log("optimisticMessage", optimisticMessage);
+
     // Add to messages list immediately (optimistic update)
+    // Add new message to the end since we display oldest first
     setMessages((prev) => [...prev, processMessage(optimisticMessage)]);
 
     // Scroll to the bottom after adding the new message
@@ -374,22 +469,36 @@ export default function ChatDetail() {
     }, 100);
 
     try {
-      // Try to send via WebSocket first
-      messageSocketInstance.sendMessage({
-        receiverId: receiverId,
-        content: trimmedMessage,
-      });
+      let messageResponse;
       
-      // Also send via API as fallback
-      const sentMessage = await messagesService.sendMessage({
-        receiverId: receiverId,
-        content: trimmedMessage,
-      });
-
+      // Kiểm tra kết nối WebSocket trước khi gửi
+      if (socketConnected) {
+        try {
+          // Thử gửi qua WebSocket trước
+          messageResponse = await messageSocketInstance.sendMessage({
+            receiverId: receiverId,
+            content: trimmedMessage,
+          });
+        } catch (socketErr) {
+          console.error("WebSocket send failed, falling back to REST API:", socketErr);
+          // Nếu WebSocket thất bại, dùng REST API
+          messageResponse = await messagesService.sendMessage({
+            receiverId: receiverId,
+            content: trimmedMessage,
+          });
+        }
+      } else {
+        // Sử dụng REST API nếu không có kết nối WebSocket
+        messageResponse = await messagesService.sendMessage({
+          receiverId: receiverId,
+          content: trimmedMessage,
+        });
+      }
+      
       // Replace optimistic message with actual message from server
       setMessages((prev) =>
         prev.map((msg) =>
-          msg.clientId === tempClientId ? processMessage(sentMessage) : msg
+          msg.clientId === tempClientId ? processMessage(messageResponse) : msg
         )
       );
     } catch (err) {
@@ -524,23 +633,62 @@ export default function ChatDetail() {
     return nameParts[0].substring(0, 2).toUpperCase();
   };
 
-  return (
-    <SafeAreaView style={chatStyles.container}>
-      <StatusBar style="light" />
-      <View style={chatStyles.headerContainer}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={chatStyles.backButton}
-        >
-          <Ionicons name="chevron-back" size={28} color="white" />
-        </TouchableOpacity>
+  // Xử lý khi người dùng đang typing
+  const handleInputChange = (text: string) => {
+    setInputMessage(text);
+    
+    // Nếu người dùng đang nhập, gửi trạng thái typing
+    if (receiverId) {
+      // Xóa timeout cũ nếu có
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      
+      // Chỉ gửi trạng thái typing nếu chưa được gửi và có kết nối WebSocket
+      if (!isTyping && socketConnected) {
+        setIsTyping(true);
+        messageSocketInstance.sendTypingStatus(receiverId, true);
+      }
+      
+      // Tự động reset trạng thái typing sau 3 giây
+      typingTimeoutRef.current = setTimeout(() => {
+        if (isTyping && socketConnected) {
+          setIsTyping(false);
+          messageSocketInstance.sendTypingStatus(receiverId, false);
+        }
+      }, 3000);
+    }
+  };
 
+  const renderTypingIndicator = () => {
+    if (!otherUserIsTyping) return null;
+    
+    return (
+      <View style={{ padding: 6, alignSelf: 'flex-start' }}>
+        <Text style={chatStyles.typingText}>
+          {friendDetails.name} is typing...
+        </Text>
+      </View>
+    );
+  };
+
+  // Render the header
+  const renderHeader = useCallback(() => {
+    return (
+      <View style={chatStyles.headerContainer}>
+        <TouchableOpacity 
+          style={chatStyles.backButton} 
+          onPress={() => router.back()}
+        >
+          <AntDesign name="arrowleft" size={24} color="white" />
+        </TouchableOpacity>
+        
         <View style={chatStyles.userInfoContainer}>
           {friendDetails.avatar ? (
             <Image
               source={{ uri: friendDetails.avatar }}
               style={chatStyles.avatar}
-              cachePolicy="memory"
+              contentFit="cover"
             />
           ) : (
             <View style={chatStyles.initialsContainer}>
@@ -549,74 +697,99 @@ export default function ChatDetail() {
               </Text>
             </View>
           )}
+          
           <View>
             <Text style={chatStyles.nameText}>{friendDetails.name}</Text>
-            {isTyping && <Text style={chatStyles.typingText}>Typing...</Text>}
+            {otherUserIsTyping && (
+              <Text style={chatStyles.typingText}>typing...</Text>
+            )}
           </View>
         </View>
-
+        
         <View style={chatStyles.headerIconsContainer}>
           <TouchableOpacity style={chatStyles.headerIcon}>
-            <Ionicons name="call-outline" size={24} color="white" />
+            <FontAwesome name="video-camera" size={20} color="#FFC83C" />
+          </TouchableOpacity>
+          <TouchableOpacity style={chatStyles.headerIcon}>
+            <Ionicons name="call" size={20} color="#FFC83C" />
           </TouchableOpacity>
         </View>
       </View>
+    );
+  }, [router, friendDetails, otherUserIsTyping]);
 
+  return (
+    <SafeAreaView style={chatStyles.container}>
+      <StatusBar style="light" />
+      
+      {/* Connection status indicator */}
+      <ConnectionStatus 
+        isConnected={socketConnected} 
+        isConnecting={socketConnecting} 
+      />
+      
+      {renderHeader()}
+      
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={chatStyles.keyboardAvoidView}
       >
         <View style={chatStyles.contentContainer}>
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.clientId || item.id}
-            contentContainerStyle={[
-              chatStyles.flatListContent,
-              messages.length === 0 && chatStyles.emptyListContent,
-            ]}
-            ListHeaderComponent={messages.length > 0 ? renderTimeHeader : null}
-            ListEmptyComponent={renderEmptyList}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor="#FFC83C"
-                colors={["#FFC83C"]}
-              />
-            }
-            showsVerticalScrollIndicator={true}
-            initialNumToRender={15}
-            maxToRenderPerBatch={10}
-            windowSize={10}
-            removeClippedSubviews={Platform.OS === 'android'}
-            inverted={false}
-            onContentSizeChange={() => {
-              if (messages.length > 0 && !refreshing) {
-                flatListRef.current?.scrollToEnd({ animated: true });
+          {messages.length === 0 ? (
+            renderEmptyList()
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              renderItem={renderItem}
+              keyExtractor={(item) => item.clientId || item.id}
+              contentContainerStyle={chatStyles.flatListContent}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={fetchMessages}
+                  tintColor="#FFC83C"
+                  colors={["#FFC83C"]}
+                />
               }
-            }}
-          />
+              ListHeaderComponent={renderTimeHeader}
+              ListFooterComponent={renderTypingIndicator}
+              initialNumToRender={15}
+              maxToRenderPerBatch={10}
+              onEndReachedThreshold={0.1}
+              // Display messages from oldest to newest (bottom = newest)
+              inverted={false}
+            />
+          )}
         </View>
 
         <View style={chatStyles.inputContainer}>
           <View style={chatStyles.inputWrapper}>
+            <TouchableOpacity>
+              <AntDesign name="picture" size={22} color="#FFC83C" style={{ marginRight: 10 }} />
+            </TouchableOpacity>
+            
             <TextInput
               ref={inputRef}
               style={chatStyles.textInput}
-              placeholder="Send message..."
-              placeholderTextColor="#999"
               value={inputMessage}
-              onChangeText={setInputMessage}
+              onChangeText={handleInputChange}
+              placeholder="Type your message..."
+              placeholderTextColor="#888"
               multiline
+              maxLength={1000}
+              autoCapitalize="sentences"
             />
-            <TouchableOpacity style={chatStyles.sendButton} onPress={sendMessage}>
-              <Ionicons
-                name="send"
-                size={22}
-                color={inputMessage.trim() ? "#FFC83C" : "#666"}
+            
+            <TouchableOpacity 
+              style={chatStyles.sendButton}
+              onPress={sendMessage}
+              disabled={!inputMessage.trim() || sending}
+            >
+              <Ionicons 
+                name="send" 
+                size={22} 
+                color={!inputMessage.trim() || sending ? "#888" : "#FFC83C"} 
               />
             </TouchableOpacity>
           </View>

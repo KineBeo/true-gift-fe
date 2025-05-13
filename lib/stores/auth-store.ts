@@ -176,6 +176,7 @@ export const useAuthStore = create<AuthState>()(
       refreshTokens: async () => {
         try {
           const { refreshToken } = get();
+          console.log('nhay vao day', refreshToken);
           
           if (!refreshToken) {
             return false;
