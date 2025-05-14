@@ -1,7 +1,7 @@
 import { apiService } from './api';
 import * as FileSystem from 'expo-file-system';
 import { useAuthStore } from '@/lib/stores/auth-store';
-import { API_URL } from '@/lib/config/environment';
+import { API_CONFIG, API_URL } from '@/lib/config/environment';
 
 export interface FileDto {
   id: string;
@@ -245,7 +245,8 @@ const filesService = {
     if (!path) return '';
     
     // Cache of gateway URLs - dedicated gateway for TrueGift
-    const PINATA_GATEWAY = 'https://lavender-useful-yak-720.mypinata.cloud/ipfs/';
+    // move to env variable later
+    const PINATA_GATEWAY = API_CONFIG.PINATA_GATEWAY;
     const PINATA_FALLBACK = 'https://gateway.pinata.cloud/ipfs/';
     
     // Log for debugging
@@ -324,7 +325,7 @@ const filesService = {
    * @param limit Number of items per page
    * @returns Promise with the user's photos
    */
-  getMyPhotos: async (page = 1, limit = 10): Promise<any> => {
+  getMyPhotos: async (page = 1, limit = 100): Promise<any> => {
     try {
       const token = useAuthStore.getState().token;
       if (!token) {

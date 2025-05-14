@@ -8,7 +8,7 @@ import {
   Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Button } from "../components/ui/Button";
+import { Button } from "../components/ui/old-ui/ButtonOld";
 import { useMemo } from "react";
 import { Feather } from "@expo/vector-icons";
 
@@ -17,6 +17,7 @@ export default function WelcomeScreen() {
   const { width } = Dimensions.get("window");
   const iconSize = Math.min(width * 0.15, 50);
   const gridWidth = Math.min(width * 0.6, 220);
+  const logoSize = Math.min(width * 0.25, 100);
 
   // Memoize the header content to avoid unnecessary re-renders
   const headerContent = useMemo(
@@ -90,13 +91,20 @@ export default function WelcomeScreen() {
         <View className="w-full">
           {/* Logo and App Name */}
           <View className="items-center space-y-4 py-9">
-            <View
-              className="bg-amber-400 rounded-2xl items-center justify-center"
-              style={{ width: 60, height: 60 }}
-            >
-              <Text className="text-3xl">❤️</Text>
+            <View className="flex-row items-center space-x-4 gap-4">
+              <View className="bg-amber-400 rounded-xl items-center justify-center" style={{ width: 40, height: 40 }}>
+                <Image
+                  source={require("../assets/images/logo.png")}
+                  style={{
+                    width: logoSize * 0.5,
+                    height: logoSize * 0.5,
+                    tintColor: "black",
+                  }}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text className="text-white text-4xl font-bold">Truegift</Text>
             </View>
-            <Text className="text-white text-4xl font-bold">TrueGift</Text>
           </View>
 
           {/* Tagline */}

@@ -10,7 +10,7 @@ export const homeStyles = StyleSheet.create({
         aspectRatio: 1,
         overflow: "hidden",
         borderRadius: 50,
-        marginBottom: 150,
+        marginBottom: 100,
       },
       feedCameraContainer: {
         width: Dimensions.get("window").width * 0.975,
@@ -34,8 +34,8 @@ export const homeStyles = StyleSheet.create({
         backgroundColor: "transparent",
       },
       sendButton: {
-        width: 95,
-        height: 95,
+        width: 75,
+        height: 75,
         borderRadius: 50,
         borderWidth: 5,
         borderColor: "#FFB800",
@@ -48,6 +48,22 @@ export const homeStyles = StyleSheet.create({
         height: 55,
         borderRadius: 50,
         backgroundColor: "white",
+      },
+      historyCaptureButtonInner: {
+        width: 35,
+        height: 35,
+        borderRadius: 30,
+        backgroundColor: "white",
+      },
+      historyCaptureButton: {
+        width: 45,
+        height: 45,
+        borderRadius: 50,
+        borderWidth: 3,
+        borderColor: "#FFB800",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "transparent",
       },
       // Feed specific styles
       feedItem: {
@@ -140,6 +156,7 @@ export const homeStyles = StyleSheet.create({
         left: 20,
         right: 20,
         alignItems: "center",
+        transitionProperty: "all",
       },
       messageButton: {
         flexDirection: "row",
@@ -176,5 +193,12 @@ export const homeStyles = StyleSheet.create({
       cancelButtonText: {
         color: "#FFB800",
         fontWeight: "600",
+      },
+      challengeCameraContainer: {
+        width: Dimensions.get("window").width * 0.975,
+        aspectRatio: 1,
+        overflow: "hidden",
+        borderRadius: 50,
+        marginBottom: 50,
       },
 })

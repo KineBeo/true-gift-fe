@@ -6,7 +6,7 @@ import {
   TouchableOpacityProps,
   View
 } from 'react-native';
-import { classNames } from '../../lib/utils/classNames';
+import { classNames } from '../../../lib/utils/classNames';
 
 interface ButtonProps extends TouchableOpacityProps {
   variant?: 'primary' | 'secondary' | 'outline';

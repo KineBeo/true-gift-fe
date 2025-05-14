@@ -31,6 +31,63 @@ interface AuthState {
   resetError: () => void;
 }
 
+// Helper function to parse backend error messages
+const parseBackendError = (error: any): string => {
+  if (!error.response) {
+    return 'Network error. Please check your connection.';
+  }
+
+  const { status, data } = error.response;
+
+  // Handle specific error status codes
+  if (status === 401) {
+    return 'Unauthorized access. Please login again.';
+  }
+
+  if (status === 403) {
+    return 'You do not have permission to perform this action.';
+  }
+
+  if (status === 404) {
+    return 'Resource not found.';
+  }
+
+  if (status === 422) {
+    // Handle validation errors
+    if (data.errors) {
+      // Check for specific validation errors
+      if (data.errors.email) {
+        if (data.errors.email === 'notFound') {
+          return 'notFound';
+        } else if (data.errors.email.includes('needLoginViaProvider')) {
+          return data.errors.email;
+        } else if (data.errors.email === 'emailExists') {
+          return 'emailExists';
+        } else if (data.errors.email === 'emailNotExists') {
+          return 'emailNotExists';
+        }
+        return `Email error: ${data.errors.email}`;
+      }
+
+      if (data.errors.password) {
+        if (data.errors.password === 'incorrectPassword') {
+          return 'incorrectPassword';
+        }
+        return `Password error: ${data.errors.password}`;
+      }
+
+      // Return the first error message if there are multiple
+      const firstErrorKey = Object.keys(data.errors)[0];
+      if (firstErrorKey) {
+        return `${firstErrorKey}: ${data.errors[firstErrorKey]}`;
+      }
+    }
+  }
+
+  // Default error message
+  return data?.message || 'An unexpected error occurred. Please try again.';
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -62,10 +119,7 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
         } catch (error) {
-          const errorMessage = 
-            (error as any)?.response?.data?.message || 
-            'Failed to login. Please try again.';
-            
+          const errorMessage = parseBackendError(error);
           console.error('Login error:', errorMessage);
           set({ isLoading: false, error: errorMessage });
         }
@@ -85,10 +139,7 @@ export const useAuthStore = create<AuthState>()(
           // After registration, automatically log in
           await get().login(email, password);
         } catch (error) {
-          const errorMessage = 
-            (error as any)?.response?.data?.message || 
-            'Failed to register. Please try again.';
-            
+          const errorMessage = parseBackendError(error);
           console.error('Registration error:', errorMessage);
           set({ isLoading: false, error: errorMessage });
         }
@@ -125,6 +176,7 @@ export const useAuthStore = create<AuthState>()(
       refreshTokens: async () => {
         try {
           const { refreshToken } = get();
+          console.log('nhay vao day', refreshToken);
           
           if (!refreshToken) {
             return false;
