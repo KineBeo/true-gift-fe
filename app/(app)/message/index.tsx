@@ -13,6 +13,18 @@ import { StatusBar } from "expo-status-bar";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image } from "expo-image";
+import LottieView from "lottie-react-native";
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming, 
+  withRepeat, 
+  withSequence, 
+  withDelay,
+  interpolate,
+  runOnJS,
+  Easing
+} from "react-native-reanimated";
 import messagesService, {
   ConversationItem,
   messageSocketInstance,
@@ -40,6 +52,94 @@ export default function Chat() {
   const [socketConnected, setSocketConnected] = useState(false);
   const [socketConnecting, setSocketConnecting] = useState(false);
   const isMounted = useRef(true);
+
+  // Tooltip animation states
+  const [tooltipVisible, setTooltipVisible] = useState(true);
+  const [tooltipText, setTooltipText] = useState("Try me! 🤖✨");
+  const [displayedText, setDisplayedText] = useState("");
+  const [textComplete, setTextComplete] = useState(false);
+  
+  const tooltipOpacity = useSharedValue(0);
+  const tooltipY = useSharedValue(-10);
+  
+  // Text streaming animation
+  useEffect(() => {
+    if (tooltipVisible && tooltipText) {
+      setDisplayedText("");
+      setTextComplete(false);
+      
+      let currentIndex = 0;
+      const interval = setInterval(() => {
+        if (currentIndex <= tooltipText.length) {
+          setDisplayedText(tooltipText.substring(0, currentIndex));
+          currentIndex++;
+          
+          if (currentIndex > tooltipText.length) {
+            clearInterval(interval);
+            setTextComplete(true);
+          }
+        } else {
+          clearInterval(interval);
+        }
+      }, 80); // Speed of typing animation
+      
+      return () => clearInterval(interval);
+    }
+  }, [tooltipVisible, tooltipText]);
+  
+  // Tooltip appearance animation
+  useEffect(() => {
+    if (tooltipVisible) {
+      tooltipOpacity.value = withSequence(
+        withTiming(0, { duration: 0, easing: Easing.linear }),
+        withDelay(500, withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) }))
+      );
+      
+      tooltipY.value = withSequence(
+        withTiming(-10, { duration: 0, easing: Easing.linear }),
+        withDelay(500, withTiming(0, { duration: 300, easing: Easing.out(Easing.ease) }))
+      );
+    } else {
+      tooltipOpacity.value = withTiming(0, { duration: 200, easing: Easing.in(Easing.ease) });
+      tooltipY.value = withTiming(-10, { duration: 200, easing: Easing.in(Easing.ease) });
+    }
+  }, [tooltipVisible]);
+  
+  // Auto hide tooltip after showing completely and show again after a delay
+  useEffect(() => {
+    if (textComplete) {
+      // Hide after 5 seconds if tooltip is complete
+      const hideTimer = setTimeout(() => {
+        setTooltipVisible(false);
+        
+        // Show again after 30 seconds
+        const showAgainTimer = setTimeout(() => {
+          setTooltipVisible(true);
+        }, 15000); // 15 seconds
+        
+        return () => clearTimeout(showAgainTimer);
+      }, 5000);
+      
+      return () => clearTimeout(hideTimer);
+    }
+  }, [textComplete]);
+  
+  // Initial show after screen mounts
+  useEffect(() => {
+    // Initial delay before showing the tooltip for the first time
+    const initialTimer = setTimeout(() => {
+      setTooltipVisible(true);
+    }, 1000);
+    
+    return () => clearTimeout(initialTimer);
+  }, []);
+  
+  const tooltipAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: tooltipOpacity.value,
+      transform: [{ translateY: tooltipY.value }],
+    };
+  });
 
   // Memoized fetch để tránh recreate function trong useEffect
   const fetchConversations = useCallback(
@@ -429,6 +529,94 @@ export default function Chat() {
         }
         ListEmptyComponent={renderEmptyList}
       />
+      
+      {/* Tooltip */}
+      <Animated.View style={[styles.tooltip, tooltipAnimatedStyle]}>
+        <Text style={styles.tooltipText}>{displayedText}</Text>
+        <View style={styles.tooltipArrow} />
+      </Animated.View>
+      
+      {/* AI Chat Button */}
+      <TouchableOpacity 
+        style={styles.aiChatButton} 
+        onPress={() => {
+          setTooltipVisible(false);
+          router.push('/ai-chat');
+        }}
+        activeOpacity={0.8}
+        className="bg-zinc-500/80"
+      >
+        <LottieView
+          source={require('@/assets/challenge/bot.json')}
+          style={styles.botIcon}
+          autoPlay
+          loop
+        />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  aiChatButton: {
+    position: 'absolute',
+    bottom: 90,
+    right: 20,
+    width: 70,
+    height: 70,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  botIcon: {
+    aspectRatio: 1,
+    height: 140,
+    opacity: 1
+  },
+  tooltip: {
+    position: 'absolute',
+    bottom: 170,
+    right: 20,
+    backgroundColor: '#121212',
+    padding: 12,
+    borderRadius: 8,
+    maxWidth: 200,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  tooltipText: {
+    color: 'white',
+    fontSize: 14,
+  },
+  tooltipArrow: {
+    position: 'absolute',
+    bottom: -10,
+    right: 30,
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderTopWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#121212',
+  }
+});
