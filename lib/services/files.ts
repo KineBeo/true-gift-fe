@@ -325,7 +325,7 @@ const filesService = {
    * @param limit Number of items per page
    * @returns Promise with the user's photos
    */
-  getMyPhotos: async (page = 1, limit = 10): Promise<any> => {
+  getMyPhotos: async (page = 1, limit = 100): Promise<any> => {
     try {
       const token = useAuthStore.getState().token;
       if (!token) {

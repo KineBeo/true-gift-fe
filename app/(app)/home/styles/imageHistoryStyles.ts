@@ -11,15 +11,16 @@ export const imageHistoryStyles = StyleSheet.create({
     backgroundColor: 'black',
   },
   gridContainer: {
+    backgroundColor: 'black',
     width: SCREEN_WIDTH,
-    paddingHorizontal: GRID_SPACING,
-    paddingTop: GRID_SPACING,
+    paddingTop: 4,
+    paddingLeft: GRID_SPACING,
+    paddingBottom: 400,
   },
   photoGrid: {
     width: SCREEN_WIDTH,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 2
   },
   photoItem: {
     width: PHOTO_SIZE,

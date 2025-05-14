@@ -49,6 +49,22 @@ export const homeStyles = StyleSheet.create({
         borderRadius: 50,
         backgroundColor: "white",
       },
+      historyCaptureButtonInner: {
+        width: 35,
+        height: 35,
+        borderRadius: 30,
+        backgroundColor: "white",
+      },
+      historyCaptureButton: {
+        width: 45,
+        height: 45,
+        borderRadius: 50,
+        borderWidth: 3,
+        borderColor: "#FFB800",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "transparent",
+      },
       // Feed specific styles
       feedItem: {
         width: SCREEN_WIDTH,

@@ -24,7 +24,9 @@ import { imageHistoryStyles } from "./styles/imageHistoryStyles";
 import IconButton from "@/components/ui/common/IconButton";
 import IconOnlyButton from "@/components/ui/common/IconOnlyButton";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import PhotoFilterPopover, { FilterOption } from "@/components/ui/photo/PhotoFilterPopover";
+import PhotoFilterPopover, {
+  FilterOption,
+} from "@/components/ui/photo/PhotoFilterPopover";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const GRID_SPACING = 2;
@@ -207,9 +209,7 @@ export default function ImageHistory() {
             contentFit="cover"
             transition={200}
             onError={() => {
-              console.log(
-                `Failed to load image: ${item.id}, URL: ${imageUrl}`
-              );
+              console.log(`Failed to load image: ${item.id}, URL: ${imageUrl}`);
               setFailedImages((prev) => ({ ...prev, [item.id]: true }));
             }}
           />
@@ -262,9 +262,9 @@ export default function ImageHistory() {
           routePath="/profile"
         />
 
-        <PhotoFilterPopover 
-          activeFilter={activeFilter} 
-          onSelectFilter={handleFilterChange} 
+        <PhotoFilterPopover
+          activeFilter={activeFilter}
+          onSelectFilter={handleFilterChange}
           friendCount={friendPhotos.length}
         />
 
@@ -277,7 +277,16 @@ export default function ImageHistory() {
       </View>
 
       {/* Grid of Photos */}
-      <View className="flex-1 top-40 absolute items-center justify-center w-full bg-black">
+      {/* className="flex-1 top-40 absolute items-center justify-center w-full bg-white" */}
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "black",
+          top: 130,
+        }}
+      >
         {loadingPhotos && photos.length === 0 ? (
           <View style={imageHistoryStyles.loadingContainer}>
             <ActivityIndicator size="large" color="#FFB800" />
@@ -309,22 +318,22 @@ export default function ImageHistory() {
       </View>
 
       {/* Bottom controls - with Capture button from home */}
-      <View className="flex-row w-full justify-between px-16 absolute bottom-20 items-center">
+      <View className="flex-row w-full justify-between px-16 absolute bottom-10 items-center">
         <TouchableOpacity
           style={imageHistoryStyles.controlButton}
           onPress={() => {
             /* placeholder */
           }}
         >
-          <Ionicons name="heart" size={35} color="white" />
+          {/* <Ionicons name="heart" size={35} color="white" /> */}
         </TouchableOpacity>
 
         {/* Capture button */}
         <Pressable
-          style={homeStyles.captureButton}
+          style={homeStyles.historyCaptureButton}
           onPress={() => router.push("/home")}
         >
-          <View style={[homeStyles.captureButtonInner]} />
+          <View style={[homeStyles.historyCaptureButtonInner]} />
         </Pressable>
 
         <TouchableOpacity
