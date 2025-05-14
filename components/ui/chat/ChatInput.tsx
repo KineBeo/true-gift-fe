@@ -8,6 +8,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   TouchableWithoutFeedback,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
@@ -16,6 +17,7 @@ interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  suggestionButtons?: React.ReactNode;
 }
 
 /**
@@ -26,6 +28,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   disabled = false,
   placeholder = 'Type a message...',
+  suggestionButtons,
 }) => {
   const [message, setMessage] = useState('');
   const inputRef = useRef<TextInput>(null);
@@ -59,13 +62,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         <View
           style={[
             styles.container,
-            isDark ? styles.containerDark : styles.containerLight,
           ]}
         >
+          {suggestionButtons}
           <View
             style={[
               styles.inputContainer,
-              isDark ? styles.inputContainerDark : styles.inputContainerLight,
             ]}
           >
             <TextInput
@@ -76,7 +78,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               placeholderTextColor={isDark ? '#888' : '#999'}
               style={[
                 styles.input,
-                isDark ? styles.inputDark : styles.inputLight,
               ]}
               multiline
               maxLength={1000}
@@ -112,16 +113,9 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 12,
     paddingVertical: 8,
-  },
-  containerLight: {
-    backgroundColor: '#f8f8f8',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-  },
-  containerDark: {
-    backgroundColor: '#1c1c1e',
-    borderTopWidth: 1,
-    borderTopColor: '#2c2c2e',
+    backgroundColor: 'black',
+    borderTopWidth: 0.8,
+    borderTopColor: 'gray'
   },
   inputContainer: {
     flexDirection: 'row',
@@ -129,16 +123,8 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 12,
     marginBottom: Platform.OS === 'ios' ? 4 : 0,
-  },
-  inputContainerLight: {
-    backgroundColor: '#fff',
+    backgroundColor: '#2C2C2E',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  inputContainerDark: {
-    backgroundColor: '#2c2c2e',
-    borderWidth: 1,
-    borderColor: '#3c3c3c',
   },
   input: {
     flex: 1,
@@ -146,12 +132,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 16,
     maxHeight: 120,
-  },
-  inputLight: {
-    color: '#000',
-  },
-  inputDark: {
-    color: '#fff',
+    color: 'white',
   },
   sendButton: {
     width: 36,
@@ -161,7 +142,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendButtonActive: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#FFC83C',
   },
   sendButtonInactive: {
     backgroundColor: 'transparent',

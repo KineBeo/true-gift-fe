@@ -28,6 +28,7 @@ interface ChatContainerProps {
   isError?: boolean;
   loadingIndicatorText?: string;
   showTypingIndicator?: boolean;
+  suggestionButtons?: React.ReactNode;
 }
 
 /**
@@ -41,6 +42,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   isError = false,
   loadingIndicatorText = 'Thinking',
   showTypingIndicator = true,
+  suggestionButtons,
 }) => {
   const flatListRef = useRef<FlatList>(null);
   const { colorScheme } = useColorScheme();
@@ -115,6 +117,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
           onSend={handleSendMessage} 
           disabled={inputDisabled} 
           placeholder={isError ? "An error occurred. Try again..." : "Type a message..."}
+          suggestionButtons={suggestionButtons}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -124,20 +127,21 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: 'black',
   },
   containerLight: {
-    backgroundColor: '#f8f8f8',
+    backgroundColor: 'black',
   },
   containerDark: {
-    backgroundColor: '#000',
+    backgroundColor: '#1A1A1A',
   },
   keyboardAvoidingView: {
     flex: 1,
   },
   messageList: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexGrow: 1,
+    padding: 16,
+    paddingBottom: 80,
+    backgroundColor: 'black',
   },
   emptyContainer: {
     flex: 1,

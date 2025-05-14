@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   primary: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#FFC83C',
     alignSelf: 'flex-end',
   },
   primaryDark: {
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   secondary: {
-    backgroundColor: '#E5E5EA',
+    backgroundColor: '#2C2C2E',
     alignSelf: 'flex-start',
   },
   secondaryDark: {
@@ -260,10 +260,10 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   primaryText: {
-    color: '#FFFFFF',
+    color: '#000',
   },
   secondaryText: {
-    color: '#000000',
+    color: '#FFFFFF',
   },
   secondaryTextDark: {
     color: '#FFFFFF',
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   typingContainer: {
-    backgroundColor: '#E5E5EA',
+    backgroundColor: '#2C2C2E',
     alignSelf: 'flex-start',
     padding: 8,
     paddingHorizontal: 16,
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
   typingText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666',
+    color: '#FFFFFF',
   },
 });
 

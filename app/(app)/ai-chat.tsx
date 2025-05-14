@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, ActivityIndicator, SafeAreaView } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,8 @@ import ChatContainer, { ChatMessage } from '../../components/ui/chat/ChatContain
 import aiChatService, { ChatStatus } from '../../lib/services/ai-chat';
 import { API_CONFIG } from '../../lib/config/environment';
 import { useAuthStore } from '../../lib/stores/auth-store';
+import IconOnlyButton from '@/components/ui/common/IconOnlyButton';
+import LottieView from 'lottie-react-native';
 
 // Interface for suggestion prompts
 interface PromptSuggestion {
@@ -32,7 +34,6 @@ export default function AIChatScreen() {
 
   // Log debug info
   const addDebugInfo = useCallback((info: string) => {
-    // console.log(`[AIChatScreen] ${info}`);
     setDebugInfo(prev => `${info}\n${prev}`);
   }, []);
 
@@ -236,7 +237,6 @@ export default function AIChatScreen() {
             key={prompt.key}
             style={[
               styles.suggestionButton,
-              isDark ? styles.suggestionButtonDark : styles.suggestionButtonLight
             ]}
             onPress={() => handleSuggestionSelect(prompt.key)}
             disabled={chatStatus === ChatStatus.Loading || chatStatus === ChatStatus.Streaming}
@@ -244,7 +244,6 @@ export default function AIChatScreen() {
             <Text 
               style={[
                 styles.suggestionText,
-                isDark ? styles.suggestionTextDark : styles.suggestionTextLight
               ]}
               numberOfLines={1}
               ellipsizeMode="tail"
@@ -258,62 +257,110 @@ export default function AIChatScreen() {
   };
 
   return (
-    <View style={[styles.container, isDark ? styles.containerDark : styles.containerLight]}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+    <SafeAreaView style={[styles.container, isDark ? styles.containerDark : styles.containerLight]}>
+      <StatusBar style={'light'} />
       
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'AI Chat',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-          headerTitleAlign: 'center',
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={styles.backButton}
-            >
-              <Ionicons
-                name="chevron-back"
-                size={28}
-                color={isDark ? '#fff' : '#000'}
-              />
-            </TouchableOpacity>
-          ),
-        }}
-      />
-
-      {/* Suggestion buttons at the top */}
-      {availablePrompts.length > 0 && renderSuggestionButtons()}
-      
-      <ChatContainer
-        messages={messages}
-        onSendMessage={sendMessage}
-        isGenerating={chatStatus === ChatStatus.Streaming || chatStatus === ChatStatus.Loading}
-        isError={chatStatus === ChatStatus.Error}
-        loadingIndicatorText="Thinking..."
-        showTypingIndicator={false} // Hide the separate typing indicator, as it's now part of the messages
-      />
-      
-      {__DEV__ && error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
+      {/* Header - similar to the one in message/index.tsx */}
+      <View style={styles.headerContainer}>
+        <View style={styles.headerLeft}>
+          <IconOnlyButton
+            iconName="arrow-back"
+            iconSize={25}
+            iconColor="white"
+            goBack={true}
+          />
         </View>
-      )}
-    </View>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>TrueGift AI</Text>
+          <Text className='text-gray-400 text-sm'>with Llama 3.3</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <LottieView
+            source={require('../../assets/challenge/llama.json')}
+            autoPlay
+            loop
+            style={styles.headerAnimation}
+          />
+        </View>
+      </View>
+      
+      {/* Content Container */}
+      <View style={styles.contentContainer}>
+        {/* Chat Container Wrapper */}
+        <View style={styles.chatContainerWrapper}>
+          <ChatContainer
+            messages={messages}
+            onSendMessage={sendMessage}
+            isGenerating={chatStatus === ChatStatus.Streaming || chatStatus === ChatStatus.Loading}
+            isError={chatStatus === ChatStatus.Error}
+            loadingIndicatorText="Thinking..."
+            showTypingIndicator={false}
+            suggestionButtons={availablePrompts.length > 0 ? renderSuggestionButtons() : null}
+          />
+        </View>
+        
+        {__DEV__ && error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: 'black',
   },
   containerLight: {
-    backgroundColor: '#f8f8f8',
+    backgroundColor: 'black',
   },
   containerDark: {
-    backgroundColor: '#000',
+    backgroundColor: 'black',
+  },
+  headerContainer: {
+    paddingTop: 20,
+    paddingBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderBottomColor: 'gray',
+    borderBottomWidth: 0.5,
+    backgroundColor: 'black',
+  },
+  headerLeft: {
+    width: 50,
+    alignItems: 'flex-start',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerRight: {
+    width: 50,
+    alignItems: 'flex-end',
+  },
+  headerTitle: {
+    fontSize: 25,
+    fontWeight: 'bold',
+    color: 'white',
+    textAlign: 'center',
+  },
+  headerAnimation: {
+    width: 60,
+    height: 60,
+  },
+  contentContainer: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    backgroundColor: 'black',
+  },
+  chatContainerWrapper: {
+    flex: 1,
   },
   backButton: {
     padding: 8,
@@ -330,11 +377,13 @@ const styles = StyleSheet.create({
   },
   suggestionsScrollView: {
     maxHeight: 50,
+    marginBottom: 8,
   },
   suggestionsContainer: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 8,
+    backgroundColor: 'black',
   },
   suggestionButton: {
     paddingHorizontal: 14,
@@ -342,24 +391,13 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginRight: 8,
     borderWidth: 1,
-  },
-  suggestionButtonLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e0e0e0',
-  },
-  suggestionButtonDark: {
-    backgroundColor: '#2c2c2e',
-    borderColor: '#3a3a3c',
+    backgroundColor: '#FFC83C',
+    borderColor: '#FFC83C',
   },
   suggestionText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  suggestionTextLight: {
-    color: '#007AFF',
-  },
-  suggestionTextDark: {
-    color: '#0A84FF',
+    fontSize: 13,
+    fontWeight: '600',
+    color: 'black',
   },
   loadingContainer: {
     height: 40,
