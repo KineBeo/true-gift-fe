@@ -9,14 +9,16 @@ export default StyleSheet.create({
         paddingBottom: 15,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         paddingHorizontal: 16,
+        borderBottomColor: 'gray',
+        borderBottomWidth: 0.5,
       },
       backButton: {
         padding: 5,
       },
       headerTitle: {
-        fontSize: 20,
+        fontSize: 25,
         fontWeight: 'bold',
         color: 'white',
         textAlign: 'center',

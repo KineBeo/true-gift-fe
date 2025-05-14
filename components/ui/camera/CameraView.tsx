@@ -59,12 +59,6 @@ const CameraViewComponent: React.FC<CameraViewProps> = ({
 
       {/* Friend count indicator */}
       <View className="absolute top-16 w-full flex-row justify-between px-4 m-4">
-        {/* <TouchableOpacity
-          className="bg-zinc-800/80 p-4 rounded-full"
-          onPress={() => router.push("/profile")}
-        >
-          <Ionicons name="person" size={22} color="white" />
-        </TouchableOpacity> */}
         <IconOnlyButton
           iconName="person"
           iconSize={25}
@@ -79,13 +73,6 @@ const CameraViewComponent: React.FC<CameraViewProps> = ({
           label="1 Friends"
           routePath="/(app)/home/friends"
         />
-
-        {/* <TouchableOpacity
-          onPress={() => router.push("/message")}
-          className="bg-zinc-800/80 p-4 rounded-full"
-        >
-          <Ionicons name="chatbubble" size={22} color="white" />
-        </TouchableOpacity> */}
         <IconOnlyButton
           iconName="chatbubble"
           iconSize={25}
@@ -122,13 +109,6 @@ const CameraViewComponent: React.FC<CameraViewProps> = ({
 
       {/* History and Challenge buttons */}
       <View className="absolute bottom-16 w-full flex-row justify-center items-center space-x-4">
-        {/* <TouchableOpacity
-          className="flex-1 flex-row items-center justify-center bg-zinc-800/80 py-4 rounded-[30px] gap-1 mx-4"
-          onPress={showHistory}
-        >
-          <Feather name="image" size={22} color="white" />
-          <Text className="text-white font-bold text-[18px]">History</Text>
-        </TouchableOpacity> */}
         <IconButton
           iconName="image"
           label="History"
@@ -136,14 +116,6 @@ const CameraViewComponent: React.FC<CameraViewProps> = ({
           className="flex-1 justify-center gap-1 mx-4 py-4"
           onPress={showHistory}
         />
-
-        {/* <TouchableOpacity
-          className="flex-1 flex-row items-center justify-center bg-zinc-800/80 py-4 rounded-[30px] gap-1 mx-4"
-          onPress={showChallenge}
-        >
-          <Feather name="award" size={22} color="white" />
-          <Text className="text-white font-bold text-[18px]">Challenge</Text>
-        </TouchableOpacity> */}
         <IconButton
           iconName="trophy-sharp"
           label="Challenge"

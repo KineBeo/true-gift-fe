@@ -10,6 +10,7 @@ interface IconOnlyButtonProps extends TouchableOpacityProps {
   iconColor?: string;
   routePath?: string;
   backgroundColor?: string;
+  goBack?: boolean;
 }
 
 const IconOnlyButton: React.FC<IconOnlyButtonProps> = ({
@@ -19,12 +20,15 @@ const IconOnlyButton: React.FC<IconOnlyButtonProps> = ({
   routePath,
   backgroundColor = "bg-zinc-800/80",
   className = "",
+  goBack = false,
   ...props
 }) => {
   const router = useRouter();
   
   const handlePress = () => {
-    if (routePath) {
+    if (goBack) {
+      router.back();
+    } else if (routePath) {
       router.push(routePath as any);
     }
     

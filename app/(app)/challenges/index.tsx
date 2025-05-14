@@ -1,47 +1,48 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  FlatList, 
-  TouchableOpacity, 
-  ActivityIndicator, 
+import { useEffect, useState } from "react";
+import {
+  Text,
+  View,
+  TouchableOpacity,
+  ActivityIndicator,
   SafeAreaView,
-  RefreshControl,
-  Image,
-  Alert
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { useAuthStore } from '@/lib/stores/auth-store';
-import challengeService, { 
-  ChallengeHistoryDto, 
-  ChallengeHistoryItem, 
-  TodayChallengeDto 
-} from '@/lib/services/challenge';
-
+  Alert,
+  Pressable,
+  ScrollView,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import challengeService, {
+  ChallengeHistoryDto,
+  TodayChallengeDto,
+} from "@/lib/services/challenge";
+import IconOnlyButton from "@/components/ui/common/IconOnlyButton";
+import IconButton from "@/components/ui/common/IconButton";
+import { homeStyles } from "../home/styles/homeStyles";
+import LottieView from "lottie-react-native";
+import challengeStyles from "./styles/challengeStyles";
 export default function ChallengeScreen() {
   const router = useRouter();
-  const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [challengeHistory, setChallengeHistory] = useState<ChallengeHistoryDto | null>(null);
-  const [todayChallenge, setTodayChallenge] = useState<TodayChallengeDto | null>(null);
+  const [challengeHistory, setChallengeHistory] =
+    useState<ChallengeHistoryDto | null>(null);
+  const [todayChallenge, setTodayChallenge] =
+    useState<TodayChallengeDto | null>(null);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       const [historyData, todayData] = await Promise.all([
         challengeService.getChallengeHistory(),
-        challengeService.getTodayChallenge()
+        challengeService.getTodayChallenge(),
       ]);
-      
+
       setChallengeHistory(historyData);
       setTodayChallenge(todayData);
     } catch (error) {
-      console.error('Error fetching challenge data:', error);
-      Alert.alert('Error', 'Failed to load challenge data');
+      console.error("Error fetching challenge data:", error);
+      Alert.alert("Error", "Failed to load challenge data");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -52,77 +53,42 @@ export default function ChallengeScreen() {
     fetchData();
   }, []);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchData();
-  };
-
   const renderTodaysChallengeCard = () => {
     if (!todayChallenge) return null;
 
     return (
-      <View style={styles.todayChallengeCard}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Today's Challenge</Text>
+      <View
+        style={challengeStyles.todayChallengeCard}
+        className="bg-zinc-800/80"
+      >
+        <View style={challengeStyles.cardHeader}>
+          <Text style={challengeStyles.cardTitle}>Today's Challenge</Text>
           {todayChallenge.isCompleted ? (
-            <View style={styles.completedBadge}>
+            <View style={challengeStyles.completedBadge}>
               <Ionicons name="checkmark-circle" size={20} color="white" />
-              <Text style={styles.completedText}>Completed</Text>
+              <Text style={challengeStyles.completedText}>Completed</Text>
             </View>
           ) : (
-            <TouchableOpacity 
-              style={styles.takeButton}
-              onPress={() => router.push('/challenges/submit')}
+            <TouchableOpacity
+              style={challengeStyles.takeButton}
+              onPress={() => {}}
             >
-              <Text style={styles.takeButtonText}>Take Challenge</Text>
+              <Text style={challengeStyles.takeButtonText}>Take Challenge</Text>
             </TouchableOpacity>
           )}
         </View>
-        
-        <Text style={styles.challengeDesc}>{todayChallenge.description}</Text>
-        
-        <View style={styles.challengeDetails}>
-          <Text style={styles.challengeClass}>Food type: {todayChallenge.class}</Text>
-          <Text style={styles.challengeExpiry}>
+
+        <Text style={challengeStyles.challengeDesc}>
+          {todayChallenge.description}
+        </Text>
+
+        <View style={challengeStyles.challengeDetails}>
+          <Text style={challengeStyles.challengeClass}>
+            Food type: {todayChallenge.class}
+          </Text>
+          <Text style={challengeStyles.challengeExpiry}>
             Expires in: {getTimeRemaining(todayChallenge.expiresAt)}
           </Text>
-        </View>
-      </View>
-    );
-  };
-
-  const renderHistoryItem = ({ item }: { item: ChallengeHistoryItem }) => {
-    const date = new Date(item.createdAt);
-    const formattedDate = date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-
-    return (
-      <View style={styles.historyItem}>
-        <View style={styles.historyItemContent}>
-          <View style={styles.historyItemHeader}>
-            <Text style={styles.historyItemDate}>{formattedDate}</Text>
-            {item.isCompleted ? (
-              <View style={styles.historyCompletedBadge}>
-                <Text style={styles.historyCompletedText}>Completed</Text>
-              </View>
-            ) : (
-              <View style={styles.historyMissedBadge}>
-                <Text style={styles.historyMissedText}>Missed</Text>
-              </View>
-            )}
-          </View>
-          
-          <Text style={styles.historyItemDesc}>{item.description}</Text>
-          
-          <View style={styles.historyItemDetails}>
-            <Text style={styles.historyItemClass}>Food: {item.class}</Text>
-            {item.isCompleted && item.score && (
-              <Text style={styles.historyItemScore}>Score: {Math.round(item.score)}%</Text>
-            )}
-          </View>
         </View>
       </View>
     );
@@ -131,319 +97,466 @@ export default function ChallengeScreen() {
   const getTimeRemaining = (expiryDateStr: string) => {
     const expiryDate = new Date(expiryDateStr);
     const now = new Date();
-    
+
     const diffMs = expiryDate.getTime() - now.getTime();
     const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
     const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (diffHrs < 0) return 'Expired';
+
+    if (diffHrs < 0) return "Expired";
     if (diffHrs >= 24) {
       const days = Math.floor(diffHrs / 24);
-      return `${days} day${days > 1 ? 's' : ''}`;
+      return `${days} day${days > 1 ? "s" : ""}`;
     }
-    
+
     return `${diffHrs}h ${diffMins}m`;
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={challengeStyles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading challenge data...</Text>
+        <Text style={challengeStyles.loadingText}>
+          Loading challenge data...
+        </Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
-      
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Photo Challenges</Text>
-        <TouchableOpacity 
-          style={styles.newChallengeButton}
-          onPress={() => router.push('/challenges/submit')}
-        >
-          <Ionicons name="camera" size={22} color="white" />
-        </TouchableOpacity>
-      </View>
-      
-      <FlatList
-        data={challengeHistory?.history || []}
-        keyExtractor={(item) => item.id}
-        renderItem={renderHistoryItem}
-        ListHeaderComponent={
-          <>
-            {/* Streak Info */}
-            <View style={styles.streakContainer}>
-              <View style={styles.streakBox}>
-                <Ionicons name="flame" size={28} color="#FFB800" />
-                <Text style={styles.streakCount}>{challengeHistory?.currentStreak || 0}</Text>
-                <Text style={styles.streakLabel}>Current Streak</Text>
+    <View className="flex-1 bg-black w-full items-center justify-center">
+      <SafeAreaView style={challengeStyles.container}>
+        <StatusBar style="dark" />
+        <View className="w-full bg-black">
+          <View
+            style={challengeStyles.streakContainer}
+            className="bg-zinc-900/95"
+          >
+            {/* Add history navigation button to top right corner */}
+            <TouchableOpacity
+              style={{
+                position: "absolute",
+                top: 10,
+                right: 10,
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 10,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: "rgba(100, 100, 100, 0.5)",
+                justifyContent: "center",
+                zIndex: 10,
+              }}
+              onPress={() => router.push("/(app)/challenges/challenge-history")}
+            >
+              <Ionicons name="time-outline" size={20} color="#fff" />
+              <Text
+                style={{
+                  color: "#fff",
+                  fontWeight: "bold",
+                  fontSize: 14,
+                  marginLeft: 5,
+                }}
+              >
+                Detail
+              </Text>
+            </TouchableOpacity>
+            <View style={challengeStyles.streakLeftBox}>
+              <View style={challengeStyles.flameIconContainer}>
+                <LottieView
+                  source={require("../../../assets/challenge/fire.json")}
+                  autoPlay
+                  loop
+                  style={challengeStyles.fireAnimation}
+                />
               </View>
-              
-              <View style={styles.streakBox}>
-                <Ionicons name="trophy" size={28} color="#FFB800" />
-                <Text style={styles.streakCount}>{challengeHistory?.highestStreak || 0}</Text>
-                <Text style={styles.streakLabel}>Best Streak</Text>
+              <Text style={challengeStyles.streakDaysCount}>
+                {challengeHistory?.currentStreak || 0} days
+              </Text>
+              <Text style={challengeStyles.streakDaysLabel}>streak</Text>
+            </View>
+
+            <View style={challengeStyles.streakRightContent}>
+              <View style={challengeStyles.pointsContainer}>
+                <Text style={challengeStyles.pointsText}>
+                  {challengeHistory?.totalCompleted || 0}
+                </Text>
+                <Text style={challengeStyles.pointsLabel}>/ 100</Text>
               </View>
-              
-              <View style={styles.streakBox}>
-                <Ionicons name="checkmark-circle" size={28} color="#28a745" />
-                <Text style={styles.streakCount}>{challengeHistory?.totalCompleted || 0}</Text>
-                <Text style={styles.streakLabel}>Completed</Text>
+
+              <View style={challengeStyles.progressBarContainer}>
+                <View
+                  style={[
+                    challengeStyles.progressBar,
+                    {
+                      width: `${Math.min(
+                        100,
+                        ((challengeHistory?.totalCompleted || 0) / 100) * 100
+                      )}%`,
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={challengeStyles.weekdayContainer}>
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
+                  (day, index) => {
+                    // Check if there is a completed challenge for this day in the recent history
+                    const dayOfWeek = index + 1; // 1 = Monday, 7 = Sunday
+                    const today = new Date();
+                    const currentDayOfWeek =
+                      today.getDay() === 0 ? 7 : today.getDay(); // Convert Sunday (0) to 7
+
+                    // Find completed challenges from the past week
+                    const isCompleted = challengeHistory?.history?.some(
+                      (item) => {
+                        if (!item.isCompleted) return false;
+
+                        const completedDate = new Date(
+                          item.completedAt || item.createdAt
+                        );
+                        const completedDayOfWeek =
+                          completedDate.getDay() === 0
+                            ? 7
+                            : completedDate.getDay();
+
+                        // Check if it's from the current week and matches the day
+                        const daysDiff = Math.floor(
+                          (today.getTime() - completedDate.getTime()) /
+                            (1000 * 60 * 60 * 24)
+                        );
+                        return daysDiff < 7 && completedDayOfWeek === dayOfWeek;
+                      }
+                    );
+
+                    return (
+                      <View
+                        key={day}
+                        style={challengeStyles.dayCircle}
+                        className={isCompleted ? "bg-amber-500" : "bg-zinc-700"}
+                      >
+                        {isCompleted && (
+                          <Ionicons name="checkmark" size={16} color="white" />
+                        )}
+                      </View>
+                    );
+                  }
+                )}
+              </View>
+              <View style={challengeStyles.dayLabelsContainer}>
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
+                  (day) => (
+                    <Text key={day} style={challengeStyles.dayLabel}>
+                      {day}
+                    </Text>
+                  )
+                )}
               </View>
             </View>
-            
-            {/* Today's Challenge */}
-            {renderTodaysChallengeCard()}
-            
-            {/* History Header */}
-            <View style={styles.historyHeader}>
-              <Text style={styles.historyHeaderText}>Challenge History</Text>
-            </View>
-          </>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="images-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyText}>No challenge history yet</Text>
-            <Text style={styles.emptySubtext}>Complete your first challenge to start your streak!</Text>
           </View>
-        }
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={styles.listContent}
-      />
-    </SafeAreaView>
+
+          {/* Today's Challenge */}
+          {renderTodaysChallengeCard()}
+        </View>
+
+        {/* Add Achievement Here */}
+        <View
+          style={challengeStyles.achievementsContainer}
+          className="bg-zinc-800/80"
+        >
+          <View style={challengeStyles.achievementHeader}>
+            <Text style={challengeStyles.achievementsTitle}>Achievements</Text>
+            <Ionicons name="trophy" size={20} color="#FFB800" />
+          </View>
+
+          <ScrollView
+            horizontal
+            scrollEnabled={true}
+            directionalLockEnabled={true}
+            alwaysBounceVertical={false}
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={challengeStyles.badgeScrollContainer}
+            className="bg-zinc-800/80"
+          >
+            {/* First Challenge Badge */}
+            <View style={challengeStyles.badgeContainer}>
+              <View
+                style={[
+                  challengeStyles.badge,
+                  challengeHistory?.achievements?.some(
+                    (a) => a.id === "first-challenge"
+                  )
+                    ? challengeStyles.firstBadge
+                    : challengeStyles.lockedBadge,
+                ]}
+              >
+                <LottieView
+                  source={require("../../../assets/challenge/first.json")}
+                  autoPlay
+                  loop
+                  style={challengeStyles.firstBadgeAnimation}
+                />
+                <View
+                  style={[
+                    challengeStyles.badgeIconBox,
+                    {
+                      backgroundColor: challengeHistory?.achievements?.some(
+                        (a) => a.id === "first-challenge"
+                      )
+                        ? "#FFB800"
+                        : "#aaa",
+                      top: 2,
+                      right: 2,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      challengeHistory?.achievements?.some(
+                        (a) => a.id === "first-challenge"
+                      )
+                        ? "star"
+                        : "lock-closed"
+                    }
+                    size={12}
+                    color="white"
+                  />
+                </View>
+              </View>
+              <Text
+                style={[
+                  challengeStyles.badgeTitle,
+                  challengeHistory?.achievements?.some(
+                    (a) => a.id === "first-challenge"
+                  ) && { color: "#FFB800" },
+                ]}
+              >
+                First Challenge
+              </Text>
+            </View>
+
+            {/* 7-day Streak Badge */}
+            <View style={challengeStyles.badgeContainer}>
+              <View
+                style={[
+                  challengeStyles.badge,
+                  challengeStyles.streakBadge,
+                  challengeHistory?.achievements?.some(
+                    (a) => a.id === "streak-7"
+                  )
+                    ? challengeStyles.badge
+                    : challengeStyles.lockedBadge,
+                ]}
+              >
+                <LottieView
+                  source={require("../../../assets/challenge/iron.json")}
+                  autoPlay
+                  loop
+                  style={challengeStyles.streakBadgeAnimation}
+                />
+                <Text
+                  style={[
+                    challengeStyles.badgeNumber,
+                    {
+                      color: challengeHistory?.achievements?.some(
+                        (a) => a.id === "streak-7"
+                      )
+                        ? "white"
+                        : "#aaa",
+                    },
+                  ]}
+                >
+                  7
+                </Text>
+                <View
+                  style={[
+                    challengeStyles.badgeIconBox,
+                    {
+                      backgroundColor: challengeHistory?.achievements?.some(
+                        (a) => a.id === "streak-7"
+                      )
+                        ? "#E94976"
+                        : "#aaa",
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      challengeHistory?.achievements?.some(
+                        (a) => a.id === "streak-7"
+                      )
+                        ? "checkmark"
+                        : "lock-closed"
+                    }
+                    size={14}
+                    color="white"
+                  />
+                </View>
+              </View>
+              <Text
+                style={[
+                  challengeStyles.badgeTitle,
+                  challengeHistory?.achievements?.some(
+                    (a) => a.id === "streak-7"
+                  ) && { color: "#E94976" },
+                ]}
+              >
+                7-Day Streak
+              </Text>
+            </View>
+
+            {/* 30-day Streak Badge */}
+            <View style={challengeStyles.badgeContainer}>
+              <View
+                style={[
+                  challengeStyles.badge,
+                  challengeStyles.streakBadge,
+                  challengeHistory?.achievements?.some(
+                    (a) => a.id === "streak-30"
+                  )
+                    ? challengeStyles.badge
+                    : challengeStyles.lockedBadge,
+                ]}
+              >
+                <LottieView
+                  source={require("../../../assets/challenge/gold.json")}
+                  autoPlay
+                  loop
+                  style={challengeStyles.streakBadgeAnimation}
+                />
+                <Text
+                  style={[
+                    challengeStyles.badgeNumber,
+                    {
+                      color: challengeHistory?.achievements?.some(
+                        (a) => a.id === "streak-30"
+                      )
+                        ? "white"
+                        : "#aaa",
+                    },
+                  ]}
+                >
+                  30
+                </Text>
+                <View
+                  style={[
+                    challengeStyles.badgeIconBox,
+                    {
+                      backgroundColor: challengeHistory?.achievements?.some(
+                        (a) => a.id === "streak-30"
+                      )
+                        ? "#E94976"
+                        : "#aaa",
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      challengeHistory?.achievements?.some(
+                        (a) => a.id === "streak-30"
+                      )
+                        ? "checkmark"
+                        : "lock-closed"
+                    }
+                    size={14}
+                    color="white"
+                  />
+                </View>
+              </View>
+              <Text
+                style={[
+                  challengeStyles.badgeTitle,
+                  challengeHistory?.achievements?.some(
+                    (a) => a.id === "streak-30"
+                  ) && { color: "#E94976" },
+                ]}
+              >
+                30-Day Streak
+              </Text>
+            </View>
+
+            {/* Dynamic mapping for any additional achievements */}
+            {challengeHistory?.achievements
+              ?.filter(
+                (a) =>
+                  !["first-challenge", "streak-7", "streak-30"].includes(a.id)
+              )
+              .map((achievement) => (
+                <View
+                  key={achievement.id}
+                  style={challengeStyles.badgeContainer}
+                >
+                  <View style={challengeStyles.badge}>
+                    <View style={challengeStyles.badgeContent}>
+                      <Text style={challengeStyles.badgeNumber}>
+                        {achievement.id
+                          .split("-")[1]
+                          ?.charAt(0)
+                          ?.toUpperCase() || "✓"}
+                      </Text>
+                      <View style={challengeStyles.badgeIconBox}>
+                        <Ionicons name="checkmark" size={14} color="white" />
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={challengeStyles.badgeTitle}>
+                    {achievement.name}
+                  </Text>
+                </View>
+              ))}
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+
+      {/* Friend count indicator */}
+      <View className="absolute top-16 w-full flex-row justify-between px-4 m-4">
+        <IconOnlyButton
+          iconName="arrow-back"
+          iconSize={25}
+          iconColor="white"
+          goBack={true}
+        />
+
+        <IconButton
+          iconName="people"
+          iconSize={25}
+          iconColor="white"
+          label="Challenges"
+        />
+        <IconOnlyButton
+          iconName="chatbubble"
+          iconSize={25}
+          iconColor="white"
+          routePath="/message"
+        />
+      </View>
+
+      {/* Bottom controls */}
+      <View className="flex-row w-full justify-between px-16 absolute bottom-36 items-center">
+        <Pressable
+          onPress={() => {}}
+          className="items-center justify-center w-12 h-12"
+        >
+          {/* <Ionicons name={"flash"} size={35} color="#ffb800" /> */}
+        </Pressable>
+
+        {/* Capture button */}
+        <Pressable
+          onPress={() => {
+            router.back();
+          }}
+          style={homeStyles.captureButton}
+        >
+          <View style={[homeStyles.captureButtonInner]} />
+        </Pressable>
+
+        <Pressable
+          onPress={() => {}}
+          className="items-center justify-center w-12 h-12"
+        >
+          {/* <Ionicons name="flame" size={35} color="white" /> */}
+        </Pressable>
+      </View>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#333',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  newChallengeButton: {
-    backgroundColor: '#007AFF',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listContent: {
-    paddingBottom: 20,
-  },
-  streakContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 15,
-    backgroundColor: 'white',
-    marginHorizontal: 15,
-    marginTop: 15,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  streakBox: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  streakCount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 5,
-    color: '#333',
-  },
-  streakLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
-  },
-  todayChallengeCard: {
-    backgroundColor: 'white',
-    marginHorizontal: 15,
-    marginTop: 15,
-    borderRadius: 12,
-    padding: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  completedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#28a745',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  completedText: {
-    color: 'white',
-    fontWeight: 'bold',
-    marginLeft: 4,
-    fontSize: 12,
-  },
-  takeButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  takeButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 12,
-  },
-  challengeDesc: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 10,
-  },
-  challengeDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  challengeClass: {
-    fontSize: 14,
-    color: '#666',
-  },
-  challengeExpiry: {
-    fontSize: 14,
-    color: '#ff6b6b',
-    fontWeight: '500',
-  },
-  historyHeader: {
-    marginHorizontal: 15,
-    marginTop: 25,
-    marginBottom: 5,
-  },
-  historyHeaderText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  historyItem: {
-    backgroundColor: 'white',
-    marginHorizontal: 15,
-    marginTop: 10,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  historyItemContent: {
-    padding: 15,
-  },
-  historyItemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  historyItemDate: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#666',
-  },
-  historyCompletedBadge: {
-    backgroundColor: '#28a745',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  historyCompletedText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  historyMissedBadge: {
-    backgroundColor: '#dc3545',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  historyMissedText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  historyItemDesc: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 8,
-  },
-  historyItemDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  historyItemClass: {
-    fontSize: 14,
-    color: '#666',
-  },
-  historyItemScore: {
-    fontSize: 14,
-    color: '#28a745',
-    fontWeight: '500',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 50,
-    paddingHorizontal: 20,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#666',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-});
