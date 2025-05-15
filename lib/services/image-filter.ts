@@ -44,31 +44,19 @@ class ImageFilterService {
 
   /**
    * Gửi ảnh và filter đến server để xử lý
-   * @param imageUri URI nội bộ của ảnh (phải bắt đầu bằng file://)
+   * @param file File ảnh cần xử lý
    * @param filterName Tên filter
    * @param strength Mức độ áp dụng filter (0.0 - 2.0)
    * @returns Blob ảnh đã được xử lý
    */
   async applyFilter(
-    imageUri: string,
+    file: File | Blob,
     filterName: FilterType,
     strength: number = 1.0
   ): Promise<Blob> {
     try {
-      if (!imageUri.startsWith('file://')) {
-        throw new Error('imageUri must start with "file://"');
-      }
-
       const formData = new FormData();
-
-      // Tạo đối tượng file cho React Native
-      const fileToUpload = {
-        uri: imageUri,
-        name: 'image.jpg',
-        type: 'image/jpeg',
-      };
-
-      formData.append('file', fileToUpload as any);
+      formData.append('file', file);
       formData.append('filter_name', filterName);
       formData.append('strength', strength.toString());
 

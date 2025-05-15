@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -6,9 +6,9 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
-  Modal,
   ScrollView,
   TouchableOpacity,
+  Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -40,14 +40,46 @@ const PicturePreview: React.FC<PicturePreviewProps> = ({
   setUri,
 }) => {
   const router = useRouter();
-  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [availableFilters, setAvailableFilters] = useState<Record<string, string>>({});
   const [selectedFilter, setSelectedFilter] = useState<FilterType | null>(null);
   const [filterStrength, setFilterStrength] = useState(1.0);
   const [isApplyingFilter, setIsApplyingFilter] = useState(false);
   const [filteredUri, setFilteredUri] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Load available filters when modal opens
+  // Cache for original image blob
+  const originalImageRef = useRef<{ uri: string; blob: Blob | null }>({
+    uri: '',
+    blob: null
+  });
+
+  // Load available filters when component mounts
+  useEffect(() => {
+    loadFilters();
+  }, []);
+
+  // Cache original image when uri changes
+  useEffect(() => {
+    if (uri && uri !== originalImageRef.current.uri) {
+      cacheOriginalImage(uri);
+    }
+  }, [uri]);
+
+  // Cache original image
+  const cacheOriginalImage = async (imageUri: string) => {
+    try {
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      originalImageRef.current = {
+        uri: imageUri,
+        blob: blob
+      };
+    } catch (error) {
+      console.error('Error caching original image:', error);
+    }
+  };
+
+  // Load available filters
   const loadFilters = useCallback(async () => {
     try {
       const filters = await imageFilterService.getAvailableFilters();
@@ -60,17 +92,32 @@ const PicturePreview: React.FC<PicturePreviewProps> = ({
 
   // Apply selected filter to image
   const applyFilter = useCallback(async (filterName: FilterType) => {
-    if (!uri) return;
+    if (!uri || !originalImageRef.current.blob) return;
 
     setIsApplyingFilter(true);
     try {
-      const filteredImage = await imageFilterService.applyFilter(uri, filterName, filterStrength);
+      // Use cached original image
+      const filteredImage = await imageFilterService.applyFilter(
+        originalImageRef.current.blob,
+        filterName,
+        filterStrength
+      );
 
-      // Convert blob to local URI
-      const localUri = URL.createObjectURL(filteredImage);
-      setFilteredUri(localUri);
-      setUri(localUri); // Update the main image
-      setIsFilterModalVisible(false);
+      if (Platform.OS === 'web') {
+        // For web platform
+        const localUri = URL.createObjectURL(filteredImage);
+        setFilteredUri(localUri);
+        setUri(localUri);
+      } else {
+        // For native platforms (iOS, Android)
+        const fr = new FileReader();
+        fr.onload = async () => {
+          const base64 = fr.result as string;
+          setFilteredUri(base64);
+          setUri(base64);
+        };
+        fr.readAsDataURL(filteredImage);
+      }
     } catch (error) {
       console.error('Error applying filter:', error);
       Alert.alert('Error', 'Failed to apply filter');
@@ -78,6 +125,13 @@ const PicturePreview: React.FC<PicturePreviewProps> = ({
       setIsApplyingFilter(false);
     }
   }, [uri, filterStrength, setUri]);
+
+  // Reset to original image
+  const resetToOriginal = useCallback(() => {
+    setSelectedFilter(null);
+    setFilteredUri(null);
+    setUri(originalImageRef.current.uri);
+  }, [setUri]);
 
   return (
     <View className="flex-1 bg-black w-full items-center justify-center">
@@ -141,10 +195,7 @@ const PicturePreview: React.FC<PicturePreviewProps> = ({
 
         <Pressable
           className="items-center justify-center w-12 h-12"
-          onPress={() => {
-            loadFilters();
-            setIsFilterModalVisible(true);
-          }}
+          onPress={() => setShowFilters(!showFilters)}
         >
           <Ionicons
             name="sparkles-outline"
@@ -167,50 +218,49 @@ const PicturePreview: React.FC<PicturePreviewProps> = ({
         </Pressable>
       </View>
 
-      {/* Filter Modal */}
-      <Modal
-        visible={isFilterModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setIsFilterModalVisible(false)}
-      >
-        <View className="flex-1 bg-black/90">
-          <View className="flex-1 mt-16">
-            <View className="flex-row justify-between items-center px-4 py-2">
-              <Text className="text-white text-xl font-bold">Select Filter</Text>
-              <Pressable onPress={() => setIsFilterModalVisible(false)}>
-                <Entypo name="cross" size={30} color="white" />
-              </Pressable>
-            </View>
-
-            <ScrollView className="flex-1 px-4">
-              <View className="flex-row flex-wrap justify-between">
-                {Object.entries(availableFilters).map(([filter, description]) => (
-                  <TouchableOpacity
-                    key={filter}
-                    className={`w-[48%] bg-zinc-800/80 rounded-lg p-4 mb-4 ${selectedFilter === filter ? 'border-2 border-yellow-500' : ''
-                      }`}
-                    onPress={() => {
-                      setSelectedFilter(filter as FilterType);
-                      applyFilter(filter as FilterType);
-                    }}
-                  >
-                    <Text className="text-white font-medium mb-2">{filter}</Text>
-                    <Text className="text-gray-400 text-sm">{description}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-
+      {/* Filter Bottom Bar */}
+      {showFilters && (
+        <View className="absolute bottom-0 w-full bg-black/90 pb-8">
+          <View className="flex-row justify-between items-center px-4 py-2">
+            <Text className="text-white text-xl font-bold">Filters</Text>
             {isApplyingFilter && (
-              <View className="absolute inset-0 bg-black/50 items-center justify-center">
-                <ActivityIndicator size="large" color="white" />
-                <Text className="text-white mt-4">Applying filter...</Text>
-              </View>
+              <ActivityIndicator size="small" color="white" />
             )}
           </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            className="px-2"
+          >
+            <TouchableOpacity
+              className={`mr-3 items-center justify-center w-16 h-16 rounded-lg ${selectedFilter === null ? 'bg-yellow-500' : 'bg-zinc-800'
+                }`}
+              onPress={resetToOriginal}
+            >
+              <Ionicons name="close-circle-outline" size={24} color="white" />
+              <Text className="text-white text-xs mt-1">Original</Text>
+            </TouchableOpacity>
+
+            {Object.entries(availableFilters).map(([filter, description]) => (
+              <TouchableOpacity
+                key={filter}
+                className={`mr-3 items-center justify-center w-16 h-16 rounded-lg ${selectedFilter === filter ? 'bg-yellow-500' : 'bg-zinc-800'
+                  }`}
+                onPress={() => {
+                  setSelectedFilter(filter as FilterType);
+                  applyFilter(filter as FilterType);
+                }}
+              >
+                <Ionicons name="sparkles-outline" size={24} color="white" />
+                <Text className="text-white text-xs mt-1" numberOfLines={1}>
+                  {filter}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
-      </Modal>
+      )}
     </View>
   );
 };
